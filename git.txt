@@ -1,0 +1,29 @@
+git 操作基本命令：
+git init  创建git仓库
+git status 显示git状态
+git reset --hard HEAD^  回退上一个版本
+git reset --hard xxxxx  回退到某个版本
+
+git add xx              把文件提交到暂存区
+git commit -m “xxxx”  把暂存区文件提交到本地分支
+git checkout --文件名   撤销当前文件修改
+git rm 文件名           删除文件
+
+------连接到远程仓库
+git remote add origin git@github.com:michaelliao/learngit.git 
+git push -u origin master
+
+
+git checkout -b dev  //从当前本地分支 创建一个分支
+
+git stash 储存当前修改
+git stash list
+git stash apply stash@{0} //恢复储存文件
+
+git push origin 本地分支:远程分支   //提交并创建一个新的远程分支
+
+git branch -r  //查看远程分支
+git branch     //查看本地分支
+git beach --all //查看所有分支
+
+git merge dev  //把本地dev分支合并到当前分支
