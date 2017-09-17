@@ -1,0 +1,3 @@
+#coding=utf-8
+CELERY_DEFAULT_EXCHANGE_TYPE = 'direct'
+CELERY_DEFAULT_ROUTING_KEY = 'task.mytask0'
