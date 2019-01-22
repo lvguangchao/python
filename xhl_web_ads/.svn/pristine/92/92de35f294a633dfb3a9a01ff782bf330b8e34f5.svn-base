@@ -1,0 +1,438 @@
+from eom_app.orm.tables import TLogWithdrawAnchor, TUserAccountIdentity, \
+    BaseUser, RoomInfo, TIdentityPersonal, TaskPlayLog, BaseRoom, BaseUnion, AgentInfo, User, AdsUnionGroup
+
+from eom_app.orm.db import app_db
+from  eom_app.orm.JSONEncoder import AlchemyEncoder
+import json
+import datetime
+
+
+class LabelClass(object):
+    _withdraw = None
+    _baseuser = None
+    _baseuserroom = None
+    _adsuniongroup = None
+    _baseunion = None
+    _agentinfo = None
+    _groupId2unionIdMap = None  # xhl_ads数据库  ads_union_group_id  对应  union_id 的map
+    _unionid2nameMap = None  # xhl_guild 数据库  union_id  对应  union_name 的map
+    _name2unionidMap = None  # xhl_guild 数据库  union_id  对应  union_name 的map
+    _roomInfoMap = None
+    _unionList = None
+    _playLogMap = None
+    _AdmPlatMap = None
+    _AdmAgentMap = None
+    _LoginUserMap = None
+    _PackageMap = None
+
+    @property
+    def db(self):
+        return app_db().get_DBSession()
+
+    @property
+    def db_ads(self):
+        return app_db().get_Ads_DBSession()
+
+    @property
+    def db_wealth(self):
+        return app_db().get_Wealth_DBSession()
+
+    @property
+    def db_guild(self):
+        return app_db().get_guild_DBSession()
+
+    @property
+    def db_adm(self):
+        return app_db().get_adm_DBSession()
+
+    def TLogWithdrawAnchor(self):
+        if self._withdraw is None:
+            session = None
+            try:
+                # print(datetime.datetime.now())
+                result = self.db_wealth.query(TIdentityPersonal).all()
+                # print(datetime.datetime.now())
+                ret = dict()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        temp['identity_id'] = info.identity_id
+                        # temp['user_id'] = info.user_id
+                        temp['verify_status'] = info.verify_status
+                        temp['status'] = info.status
+                        temp['id_user_name'] = info.id_user_name
+                        temp['id_number'] = info.id_number
+                        temp['bank_name'] = info.bank_name
+                        temp['bank_card_number'] = info.bank_card_number
+                        temp['hold_user_name'] = info.hold_user_name
+                        temp['bank_sub_name'] = info.bank_sub_name
+                        temp['id_img_front'] = info.id_img_front
+                        temp['qq_number'] = info.qq_number
+                        temp['id_img_back'] = info.id_img_back
+                        ret[info.user_id] = temp
+                    # print(datetime.datetime.now())
+                    self._withdraw = ret
+                    return ret
+                return None
+            except Exception as e:
+
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._withdraw
+
+    def Baseuser(self):
+        if self._baseuser is None:
+            session = None
+            try:
+                result = self.db_guild.query(BaseUser.u_mobile_number, BaseUser.user_id).all()
+                ret = dict()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        # temp['user_id'] = info.user_id
+                        temp['u_mobile_number'] = info.u_mobile_number
+                        ret[info.user_id] = temp
+                    self._baseuser = ret
+                    return ret
+                return None
+            except Exception as e:
+                print(e)
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._baseuser
+
+    def Baseuserroom(self):
+        if self._baseuserroom is None:
+            session = None
+            try:
+                result = self.db_guild.query(BaseUser.user_id, BaseUser.u_nickname, BaseRoom.room_id,
+                                             BaseRoom.platform_id).outerjoin(BaseRoom,
+                                                                             BaseUser.user_id == BaseRoom.user_id).all()
+                ret = dict()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        temp['room_id'] = info.room_id
+                        temp['u_nickname'] = info.u_nickname
+                        temp['platform_id'] = info.platform_id
+                        ret[info.user_id] = temp
+                    self._baseuserroom = ret
+                    return ret
+                return None
+            except Exception as e:
+                print(e)
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._baseuserroom
+
+    def Adsuniongroup(self):
+        if self._adsuniongroup is None:
+            session = None
+            try:
+                result = self.db_ads.query(AdsUnionGroup.platform_id, AdsUnionGroup.room_id,
+                                           AdsUnionGroup.source_link, AdsUnionGroup.union_id
+                                           ).filter(AdsUnionGroup.apply_status != 50).all()
+                ret = dict()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        temp['source_link'] = info.source_link
+                        temp['union_id'] = info.union_id
+                        ret[str(info.platform_id) + '_' + str(info.room_id)] = temp
+                    self._adsuniongroup = ret
+                    return ret
+                return None
+            except Exception as e:
+                print(e)
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._adsuniongroup
+
+    def Baseunion(self):
+        if self._baseunion is None:
+            session = None
+            try:
+                result = self.db_guild.query(BaseUnion.union_id, BaseUnion.union_name).all()
+                ret = dict()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        temp['union_name'] = info.union_name
+                        ret[info.union_id] = temp
+                    self._baseunion = ret
+                    return ret
+                return None
+            except Exception as e:
+                print(e)
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._baseunion
+
+    def AgentInfo(self):
+        if self._agentinfo is None:
+            session = None
+            try:
+                result = self.db_ads.query(AgentInfo.agent_id, AgentInfo.agent_name).all()
+                ret = dict()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        temp['agent_name'] = info.agent_name
+                        ret[info.agent_id] = temp
+                    self._agentinfo = ret
+                    return ret
+                return None
+            except Exception as e:
+                print(e)
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._agentinfo
+
+    # xhl_guild 数据库  union_id   对应  union_name 的map
+    # xhl_guild 数据库  union_name 对应 union_id  的map
+    def unionid2nameMap(self):
+        if self._unionid2nameMap is None or self._name2unionidMap is None:
+            try:
+                sql = 'select union_id,union_name from T_guild_union'
+                results = self.db_wealth.execute(sql).fetchall()
+                unionid2nameMap = dict()
+                name2unionidMap = dict()
+                for r in results:
+                    if r[0] is not None and r[0] != "":
+                        unionid2nameMap[r[0]] = r[1]
+                    if r[1] is not None and r[1] != "":
+                        name2unionidMap[r[1]] = r[0]
+                self._unionid2nameMap = unionid2nameMap
+                self._name2unionidMap = name2unionidMap
+                return unionid2nameMap, name2unionidMap
+            except Exception as e:
+                print(e)
+                return None
+            finally:
+                self.db_wealth.close()
+        else:
+            return self._unionid2nameMap, self._name2unionidMap
+
+    def getRoomInfo(self):
+        if self._roomInfoMap is None:
+            roomInfoMap = dict()
+            try:
+                result = self.db_ads.query(RoomInfo).all()
+                if result:
+                    for info in result:
+                        temp = json.loads(json.dumps(info, cls=AlchemyEncoder))
+                        roomInfoMap[info.room_id] = temp
+                    self._roomInfoMap = roomInfoMap
+                    return roomInfoMap
+                return None
+            except Exception as e:
+                return None
+            finally:
+                self.db_ads.close()
+        else:
+            return self._roomInfoMap
+
+    def getRoomInfoById(self, roomId):
+        if not roomId:
+            return ""
+        roomInfoMap = self.getRoomInfo()
+        if roomId in roomInfoMap:
+            return roomInfoMap[roomId]
+        else:
+            try:
+                result = self.db_ads.query(RoomInfo).filter(RoomInfo.room_id == roomId).first()
+                if result:
+                    temp = json.loads(json.dumps(result, cls=AlchemyEncoder))
+                    self._roomInfoMap[result.room_id] = temp
+                    return self._roomInfoMap[roomId]
+                else:
+                    return ''
+            finally:
+                self.db_ads.close()
+
+    def getUnionList(self):
+        if self._unionList is None:
+            sql = 'select union_id,union_name from  T_guild_union '
+            try:
+                result = self.db_wealth.execute(sql).fetchall();
+                lst = list()
+                for ret in result:
+                    lst.append({"union_id": ret[0], "union_name": ret[1]})
+            finally:
+                self.db_wealth.close()
+                self._unionList = lst
+                self.db_wealth.close()
+            return lst
+        else:
+            return self._unionList
+
+    def getPlayLogMap(self):
+        if self._playLogMap is None:
+            result = []
+            try:
+                sql = 'SELECT p.play_id,p.record_path,p.screen_shot_path,p.popularity ' \
+                      ' from ads_task_play_log p'
+                result = self.db_ads.execute(sql).fetchall();
+            finally:
+                self.db_wealth.close()
+            playLogMap = {ret['play_id']: ret for ret in result}
+            self._playLogMap = playLogMap
+            return playLogMap
+        else:
+            return self._playLogMap
+
+    def getPlayLog(self, play_id):
+        playLogMap = self.getPlayLogMap()
+        if play_id in playLogMap:
+            return playLogMap[play_id]
+        else:
+            try:
+                sql = ' SELECT p.play_id,p.record_path,p.screen_shot_path,' \
+                      'p.popularity from ads_task_play_log p  where play_id={}'.format(int(play_id))
+                result = self.db_ads.execute(sql).fetchone()
+                if result:
+                    self._playLogMap[result['play_id']] = result
+                    return self._playLogMap[play_id]
+                else:
+                    return ''
+            finally:
+                self.db_ads.close()
+
+    def getAdmPlatMap(self):
+        if self._AdmPlatMap is None:
+            sql = 'select plat_id,plat_name,plat_rate from adm_platform'
+            try:
+                plat_result = self.db_adm.execute(sql)
+            finally:
+                self.db_adm.close()
+            platMap = {p['plat_id']: p for p in plat_result}
+            self._AdmPlatMap = platMap
+            return platMap
+        else:
+            return self._AdmPlatMap
+
+    def getAdmPlat(self, plat_id):
+        AdmPlatMap = self.getAdmPlatMap()
+        if plat_id in AdmPlatMap:
+            return AdmPlatMap[plat_id]
+        else:
+            try:
+                sql = 'select plat_id,plat_name,plat_rate from adm_platform where plat_id={}'.format(plat_id)
+                result = self.db_adm.execute(sql).fetchone()
+                if result:
+                    self._AdmPlatMap[result['plat_id']] = result
+                    return self._AdmPlatMap[plat_id]
+                else:
+                    return ''
+            finally:
+                self.db_ads.close()
+
+    def getAdmAgentMap(self):
+        if self._AdmAgentMap is None:
+            sql = 'SELECT agent_id,agent_name from adm_agent'
+            try:
+                agent_result = self.db_adm.execute(sql)
+            finally:
+                self.db_adm.close()
+            agentMap = {p['agent_id']: p for p in agent_result}
+            self._AdmAgentMap = agentMap
+            return agentMap
+        else:
+            return self._AdmAgentMap
+
+    def getAdmAgent(self, agent_id):
+        AdmAgentMap = self.getAdmAgentMap()
+        if agent_id in AdmAgentMap:
+            return AdmAgentMap[agent_id]
+        else:
+            try:
+                sql = 'SELECT agent_id,agent_name from adm_agent where agent_id={}'.format(agent_id)
+                result = self.db_adm.execute(sql).fetchone()
+                if result:
+                    self._AdmAgentMap[result['agent_id']] = result
+                    return self._AdmPlatMap[agent_id]
+                else:
+                    return ''
+            finally:
+                self.db_ads.close()
+
+    ##后台系统 =》 登陆用户
+    def getLoginUserMap(self):
+        if not self._LoginUserMap:
+            rets = self.db_adm.query(User).all()
+            loginUserMap = {user.user_id: user for user in rets}
+            self._LoginUserMap = loginUserMap
+            return loginUserMap
+        else:
+            return self._LoginUserMap
+
+    def getLoginUser(self, userId):
+        if not userId:
+            return ''
+        self.getLoginUserMap()
+        if userId in self._LoginUserMap:
+            return self._LoginUserMap[userId]
+        else:
+            user = self.db_adm.query(User).filter(User.user_id == userId).first()
+            self._LoginUserMap[user.user_id] = user
+            return user
+
+    def getPackageMap(self):
+        if self._PackageMap is None:
+            sql = 'select package_id,package_name from ads_contract_package_info'
+            try:
+                plat_result = self.db_ads.execute(sql)
+            finally:
+                self.db_ads.close()
+            PackageMap = {p['package_id']: p for p in plat_result}
+            self._PackageMap = PackageMap
+            return PackageMap
+        else:
+            return self._PackageMap
+
+    def getPack(self, plat_id):
+        if not plat_id:
+            return ''
+        PlatMap = self.getPackageMap()
+        if plat_id in PlatMap:
+            return PlatMap[plat_id]
+        else:
+            try:
+                sql = 'select package_id,package_name from ads_contract_package_info ' \
+                      ' WHERE  package_id={}'.format(plat_id)
+                result = self.db_ads.execute(sql).fetchone()
+                if result:
+                    self._PackageMap[result['package_id']] = result
+                    return self._PackageMap[plat_id]
+                else:
+                    return ''
+            finally:
+                self.db_ads.close()
+
+
+_withdraw = LabelClass()
+
+del LabelClass
+
+
+def app_map():
+    global _withdraw
+    return _withdraw

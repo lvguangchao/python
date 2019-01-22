@@ -1,0 +1,138 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+"""
+@author: lvguangchao
+@email: guangchao.lv@qq.com
+@file: uploadFile.py
+@time: 2017/10/11 14:41
+"""
+
+import paramiko, zipfile, os, hashlib
+
+from io import BytesIO
+from eom_app.app.configs import app_cfg
+
+cfg = app_cfg()
+
+
+class UploadSSH(object):
+    def __init__(self):
+        self.host = cfg.file_host
+        self.port = cfg.file_port
+        self.username = cfg.file_uname
+        self.pwd = cfg.file_pwd
+        self.file_url = cfg.file_url
+        self.sftp = None
+
+    def connect(self):
+        transport = paramiko.Transport((self.host, self.port))
+        transport.connect(username=self.username, password=self.pwd)
+        self.__transport = transport
+
+    def close(self):
+        self.__transport.close()
+
+    # 二进制上传
+    def upload(self, fileMeta, fileName):
+        self.connect()
+        self.sftp = paramiko.SFTPClient.from_transport(self.__transport)
+        memory = BytesIO(fileMeta)
+        self.sftp.putfo(memory, cfg.file_remotePath + "/" + fileName)
+        print(self.sftp.transfer_size)
+        self.close()
+        url = "{}/{}".format(self.file_url, fileName)
+        return url
+
+    # 文件上传
+    # def uploadFile(self, file, fileName):
+    #         self.connect()
+    #         self.sftp = paramiko.SFTPClient.from_transport(self.__transport)
+    #         self.sftp.put(file, cfg.file_remotePath + "/" + fileName)
+    #         print(self.sftp.transfer_size)
+    #         self.close()
+    #         url = "{}/{}".format(self.file_url, fileName)
+    #         return url
+
+    def uploadFile(self, file, remotePath, fileName):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(self.host, username=self.username, password=self.pwd, allow_agent=True)
+
+        # step 1创建文件夹
+        stdin, stdout, stderr = ssh.exec_command('ls ' + remotePath)
+        if stdout.readline() != '':
+            print("exist")
+        else:
+            print("not exist")
+            ssh.exec_command('mkdir -p ' + remotePath)
+            print(remotePath)
+        ssh.close()
+
+        # setup 2 上传文件
+        self.connect()
+        self.sftp = paramiko.SFTPClient.from_transport(self.__transport)
+        memory = BytesIO(file)
+        self.sftp.putfo(memory, remotePath + "/" + fileName)
+        print(self.sftp.transfer_size)
+        self.close()
+        url = "{}/{}".format(self.file_url, fileName)
+        return url
+
+    # 校验压缩包是否有关键文件
+    def key_Filevalid(self, key_name, zipname):
+        z = zipfile.ZipFile(zipname, 'r')
+        flag_x86 = -1
+        flag_x64 = -1
+        if_x86 = -1
+        if_x64 = -1
+        try:
+            for filename in z.namelist():
+                if (os.path.dirname(filename).startswith("x86") and os.path.basename(filename) != ""):
+                    if_x86 = 1
+                if (os.path.dirname(filename).startswith("x64") and os.path.basename(filename) != ""):
+                    if_x64 = 1
+
+                if (os.path.basename(filename) == key_name):
+                    if (os.path.dirname(filename).startswith("x86")):
+                        flag_x86 = 1
+                    if (os.path.dirname(filename).startswith("x64")):
+                        flag_x64 = 1
+        finally:
+            z.close()
+        return flag_x86 * if_x86 > 0 and flag_x64 * if_x64 > 0
+
+    # 拆分2个压缩包
+    def compression_file(self, filename):
+        f = zipfile.ZipFile(filename, 'r')
+        (filepath, tempfilename) = os.path.split(filename)
+        # path=os.path.abspath(os.path.join(__file__,"..","..","..","..","data",filepath))
+
+        # ---------------解压-------------------
+        for file in f.namelist():
+            f.extract(file, filepath)
+        f.close()
+        # ---------------压缩x86-------------------
+        z = zipfile.ZipFile(os.path.abspath(os.path.join(filepath, "x86.zip")), 'w')
+        for dirpath, dirnames, filenames in os.walk(os.path.join(filepath, "x86")):
+            for file_name in filenames:
+                z.write(os.path.join(dirpath, file_name))
+        z.close()
+        # ---------------压缩x64-------------------
+        z = zipfile.ZipFile(os.path.abspath(os.path.join(filepath, "x64.zip")), 'w')
+        for dirpath, dirnames, filenames in os.walk(os.path.join(filepath, "x64")):
+            for file_name in filenames:
+                z.write(os.path.join(dirpath, file_name))
+        z.close()
+        return filepath
+
+    def get_md5(self, file_path):
+        md5 = None
+        if os.path.isfile(file_path):
+            f = open(file_path, 'rb')
+            md5_obj = hashlib.md5()
+            md5_obj.update(f.read())
+            hash_code = md5_obj.hexdigest()
+            f.close()
+            md5 = str(hash_code).lower()
+        return md5

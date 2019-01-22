@@ -1,0 +1,45 @@
+from .base import SwxJsonHandler
+from eom_app.orm.tables import TLogWithdrawAnchor
+
+
+class LabelClass(SwxJsonHandler):
+    _withdraw = None
+    def TLogWithdrawAnchor(self):
+        if self._withdraw is None:
+            session = None
+            try:
+                result = self.db_wealth.query(TLogWithdrawAnchor).all()
+                # room_label_list = session.execute(sql).fetchall()
+                ret = list()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        temp['id'] = info.id
+                        temp['user_id'] = info.user_id
+                        temp['money'] = info.money
+                        temp['sevice_money'] = info.sevice_money
+                        temp['money_balance'] = info.money_balance
+                        temp['sevice_money_balance'] = info.sevice_money_balance
+                        temp['money_rp'] = info.money_rp
+                        temp['sevice_money_rp'] = info.sevice_money_rp
+                        temp['apply_state'] = info.apply_state
+                        ret.append(temp)
+                    self._withdraw = ret
+                    return ret
+                return None
+            except Exception as e:
+
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._withdraw
+
+_withdraw = LabelClass()
+del LabelClass
+
+
+def app_db():
+    global _withdraw
+    return _withdraw

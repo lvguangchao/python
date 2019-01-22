@@ -1,0 +1,87 @@
+﻿# -*- coding: utf-8 -*-
+# reload(sys)
+# sys.setdefaultencoding('utf8')
+
+import os
+import xlwt
+import pymysql
+from datetime import datetime, date
+from eom_app.app.configs import app_cfg
+
+cfg = app_cfg()
+
+
+def export(data,list,lits2):
+    # conn = pymysql.connect(host,user,password,dbname,charset='utf8')
+    # cursor = conn.cursor()
+    # print(data,list)
+    #
+    # count = cursor.execute('select * from '+table_name)
+    # print(count)
+    # # 重置游标的位置
+    # cursor.scroll(0,mode='absolute')
+    # # 搜取所有结果
+    # results = cursor.fetchall()
+    #
+    # # 获取MYSQL里面的数据字段名称
+    # fields = cursor.description
+    # print(data)
+    date_now = datetime.now()
+    date_now = date_now.strftime('%d%H%M%S')
+    datas = data[0]
+
+    workbook = xlwt.Workbook()
+    sheet = workbook.add_sheet('table_update', cell_overwrite_ok=True)
+    # print(fields)
+    # 写上字段信息\
+    # print(data)
+    fields = list
+    for field in range(0, len(fields)):
+        # print(field)
+        sheet.write(0, field, fields[field])
+    # print('222')
+    # 获取并写入数据段信息
+    row = 1
+    col = 0
+    # print(data[0])
+
+    for row in range(1, len(data) + 1):
+        # print(row)
+        # print(data[0])
+        # sheet.write(row, int(0), u'%s' % data[row-1][0])
+        sheet.write(row, int(0), u'%s' % data[row - 1]['id'])
+        # print('5656')
+        # sheet.write(row, int(1), u'%s' % data[row-1][2])
+        sheet.write(row, int(1), u'%s' % data[row - 1]['user_id'])
+        sheet.write(row, int(2), u'%s' % data[row - 1]['u_mobile_number'])
+        sheet.write(row, int(3), u'%s' % data[row - 1]['money'])
+        sheet.write(row, int(4), u'%s' % data[row - 1]['sevice_money'])
+        sheet.write(row, int(5), u'%s' % data[row - 1]['money_rp'])
+        sheet.write(row, int(6), u'%s' % data[row - 1]['create_time'])
+        sheet.write(row, int(7), u'%s' % data[row - 1]['bank_name'])
+        sheet.write(row, int(8), u'%s' % data[row - 1]['bank_card_number'])
+        sheet.write(row, int(9), u'%s' % data[row - 1]['bank_sub_name'])
+        sheet.write(row, int(10), u'%s' % data[row - 1]['hold_user_name'])
+        sheet.write(row, int(11), u'%s' % data[row - 1]['id_number'])
+        sheet.write(row, int(12), u'%s' % data[row - 1]['id_img_front'])
+        sheet.write(row, int(13), u'%s' % data[row - 1]['id_img_back'])
+        sheet.write(row, int(14), u'%s' % data[row - 1]['qq_number'])
+        sheet.write(row, int(15), u'%s' % data[row - 1]['money_balance'])
+        sheet.write(row, int(16), u'%s' % data[row - 1]['apply_name'])
+        # print('45454545')
+
+    # print(date_now)
+    xls_url = os.path.join(cfg.static_path, 'download/', '提现_' + str(date_now) + '.xls')
+    excel_url = '/static/download/' + '提现_' + str(date_now) + '.xls'
+    # print(xls_url)
+
+    workbook.save(xls_url)
+
+    # workbook.save('../static/download/'+str(date_now)+str(platform_id)+'.xlsx')
+
+    return excel_url
+
+
+    # # 结果测试
+    # if __name__ == "__main__":
+    #     export('192.168.120.84','root','123456','xhl_guild','base_user','../../../static/download/datetest.xlsx')

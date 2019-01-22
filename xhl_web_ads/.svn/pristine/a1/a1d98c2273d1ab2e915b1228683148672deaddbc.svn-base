@@ -1,0 +1,289 @@
+var ws = null
+//安装包的名称定义192.168.120.62
+var file_data=null
+var param=""
+var v_dlg=null
+var ws_svn=null
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#pluginBatch-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='pluginBatch-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/pluginBatch/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+             {title: "ID", key: "id",width: 30},
+            {title: "批次号", key: "batch_id",width: 30},
+
+            {title: "渠道号", key: "chanel_id",width: 30},
+            {title: "渠道名称", key: "chanel_name",width: 30},
+            {title: "setup", key: "update_url",width: 50, render: 'download_u',fields: {ID: 'id',update_url:"update_url",batch_dir:"batch_dir"}},
+            {title: "文件夹", key: "batch_dir",width: 10, render: 'render_dir',fields: {batch_dir: 'batch_dir'}},
+            {title: "操作人", key: "update_person",width: 10},
+            {
+                title: "状态", key: "state", width: 10, render: 'format_state',
+                fields: {state: 'state'}
+            },
+            {
+                title: "日志时间", key: "logtime", width: 180, render: 'format_time',
+                fields: {logtime: 'logtime'}
+            },
+
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'id'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+     var host_table= ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    $(dom_id + " [ywl-filter='select_chanel']").click(function () {
+        var load=$("#chanel_list").attr("load")
+        if (load == "false") {
+            $.get("/chanel/list", function (ret) {
+                    var auxArr = [];
+                    $.each(ret.data, function (k, v) {
+                        auxArr[k] = "<tr><td>" + v["id"] + "</td><td>" + v["chanel_id"] + "</td>" + "<td>" + v["name"] + "</td></tr>";
+                    });
+                    $('#chanel_list').append(auxArr.join(''));
+                }
+            );
+            $("#chanel_list").attr("load", "true")
+        }
+        $("#dialog-chanel-info").modal();
+    });
+
+
+    $(dom_id + " [ywl-filter='update_code']").click(function () {
+        //1:建立websocket链接192.168.120.62
+        if (ws_svn != null) {
+            ws_svn.close();
+        }
+        ws_svn = new WebSocket("ws://192.168.120.62:8000/chat");
+        console.log("svn websocket init()");
+        //2:disabled
+        var that = $(this);
+        that.attr("disabled", true);
+        ws_svn.onopen = function (event) {
+            //3:发送cmd
+            ws_svn.send(JSON.stringify({type: "svn_update"}));
+            //4：接收返回值
+            ws_svn.onmessage = function (e) {
+                if (e.data.indexOf("complete:yes") >= 0) {
+                    ws_svn.close()
+                    alert("svn 更新结束");
+                    that.removeAttr("disabled");
+                }
+            }
+        }
+    });
+
+
+    $("#to_pack").click(function () {
+        ws = new WebSocket("ws://192.168.120.62:8000/chat");
+        console.log("websocket init");
+        ws.onopen = function(event) {
+         ws.onmessage = function (e) {
+            // var div = document.getElementById("msg_view");
+            // div.scrollTop = div.scrollHeight;
+            //  var h = $("#msg_view")[0].scrollHeight;
+            //  $("#msg_view").scrollTop(h);
+             $("#msg_view").append("<br>" + e.data)
+            if (e.data.indexOf("success:yes") >= 0) {
+                param = {state: 2, setup_name: file_data.setup_name, batch_dir: file_data.batch_dir}
+                $("#dialog-pluginBatch-info").modal('hide');
+
+                pack_callback(param)
+            }
+
+            if (e.data.indexOf("complete:yes") >= 0) {
+                // alert("脚本执行结束")
+                $("#msg_notice").html("warning: the command has complete ");
+                $("#dialog_close").removeAttr("disabled");
+                ws.close();
+            }
+
+            function pack_callback(file_data) {
+                ywl.ajax_post_json_time_out('/pluginBatch/add', file_data, 1000 * 300,
+                    function (ret) {
+                        ws.close();
+                        if (ret.code === TPE_OK) {
+                            ywl.notify_success('打包数据更新成功');
+                        } else {
+                            ywl.notify_error('打包数据更新失败！');
+                        }
+                    },
+                    function () {
+                        ws.close();
+                        ywl.notify_error('网络故障，打包数据更新失败！');
+                    }
+                );
+            }
+        }
+        }
+        $("#msg_view").empty();
+        $("#msg_notice").empty();
+        $("#dialog-pluginBatch-info").modal({backdrop: 'static', keyboard: false});
+        $('#start_pack').removeAttr("disabled");
+    })
+
+    $("#start_pack").click(function () {
+        $("#start_pack").attr("disabled", true);
+        $("#dialog_close").attr("disabled", true);
+        var setup_name = "setup" + getYearMonday()
+        var batch_dir = "batch" + get_fileName()   //打包文件夹路径
+        file_data = {
+            setup_name: setup_name,
+            batch_dir: batch_dir,
+            type: "batch"
+        }
+        while (1) {
+            if (ws && ws.OPEN == 1) {
+                ws.send(JSON.stringify(file_data));
+                break
+            }
+        }
+        $("#msg_notice").html("warning: the command is runing.. ");
+
+    })
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+
+
+    $('#dialog-pluginBatch-info').on('hidden.bs.modal', function (e) {
+        host_table.reload()
+        if(ws!=null){
+            ws.close()
+        }
+        console.log("websocket closed ,the grid is refresh")
+    })
+};
+
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        }else if (col_key==="action"){
+            var row_data = tbl.get_row(row_id);
+            $(cell_obj).find('[ywl-btn-delete]').click(function () {
+                ywl.ajax_post_json_time_out('/pluginBatch/delete', {id:row_data.id}, 1000 * 300,
+                    function (ret) {
+                        if (ret.code === TPE_OK) {
+                            ywl.notify_success('删除成功');
+                            tbl.reload()
+                        } else {
+                            ywl.notify_error('删除失败！'+ ret.message);
+                        }
+                    },
+                    function () {
+                        ywl.notify_error('网络故障，删除失败！');
+                    }
+                );
+            });
+
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+        var host="http://192.168.120.62:8000"
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+                ret.push('<a href="javascript:;" class="btn btn-sm btn-success" protocol=' + fields.protocol + ' ywl-btn-delete="' + fields.ID + '">删除</a>&nbsp');
+                return ret.join('');
+        }
+         render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T"," ") + ' </span>';
+        };
+        render.download_u = function (row_id, fields) {
+            return '<a href="'+host+'/plugin/download/?name=output/'+fields.batch_dir+'/'+fields.update_url+'">' + (fields.update_url?fields.update_url:'') + ' </a>';
+        };
+        render.format_state = function (row_id, fields) {
+            var state="未知状态"
+            var color=""
+            if(fields.state=="0"){
+                state="就绪"
+                color="#bdd422"
+            }else if(fields.state=='1'){
+                color="#b82b30"
+                state="失败"
+            }else if(fields.state=='2'){
+                color="#5cb85c"
+                state="成功"
+            }
+            return '<span class="badge badge-primary mono" style="background-color:'+color+';">' + state + ' </span>';
+        };
+        render.render_dir = function (row_id, fields) {
+            return '<span class="badge">' +'\\\\192.168.120.62\\setup2\\output\\'+ fields.batch_dir + ' </span>';
+        };
+    };
+};
+
+
+

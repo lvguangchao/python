@@ -1,0 +1,138 @@
+# -*- coding: utf-8 -*-
+from . import toc
+from . import ads
+
+# from . import error
+# from . import support
+
+__all__ = ['controllers']
+
+controllers = [
+    (r'/', toc.LoginHandler),
+    (r'/signout', toc.SignOutHander),
+    (r'/login', toc.LoginHandler),
+    (r'/pwd/update', toc.PwdUpdateHander),
+    (r'/get/task/gen', toc.getTask4UploadHander),
+    (r'/get/task/process', toc.getTaskProcessHander),
+
+    (r'/get/RandomCode', toc.RandomCode),
+    (r'/user', toc.UserHander),
+    (r'/index', toc.IndexHandler),
+
+    (r'/adsinfo/list', ads.AdsInfoHander),
+    (r'/adsinfo/add', ads.adsinfoAddHander),
+    (r'/adsinfo/edit', ads.adsinfoEditHander),
+    (r'/adsinfo/vadd', ads.adsInfoVedioAddHander),
+    (r'/adsinfo/delete', ads.adsInfoDeleteHander),
+    (r'/adsinfo/select', ads.adsInfoSelect4AllHander),
+    (r'/groupinfo/select', ads.GroupInfoSelect4AllHander),
+    (r'/needinfo/getadsinfo(.*)', ads.adsInfoFindByIdHander),
+    (r'/packinfo/select', ads.contPackInfoSelect4AllHander),
+
+    (r'/needinfo/get(.*)', ads.NeedInfoFindByIdIdHander),
+    (r'/needinfo/list', ads.needInfoHander),
+
+    (r'/contractinfo/list', ads.contractInfoHander),
+    (r'/contractinfo/add', ads.contractAddInfoHander),
+    (r'/contractinfo/delete', ads.contractDelInfoHander),
+    (r'/contractinfo/edit', ads.contractEdInfoHander),
+
+    (r'/needinfo/add', ads.NeedInfoAddHander),
+    (r'/needinfo/edit', ads.NeedInfoEditHander),
+    (r'/needinfo/delete', ads.needInfoDeleteHander),
+    (r'/needinfo/all', ads.NeedInfo4AllHander),
+    (r'/needinfo/toadd', ads.needinfoBatchAddHander),
+
+    (r'/needgroupinfo/list', ads.needGroupInfoHander),
+    (r'/needgroupinfo/add', ads.NeedGroupInfoAddHander),
+    (r'/needgroupinfo/edit', ads.NeedGroupInfoEditHander),
+    (r'/needgroupinfo/delete', ads.NeedGroupInfoDeleteHander),
+    (r'/groupneedmap/update', ads.GroupNeedMapUpdateHander),
+    (r'/groupneedinfo/all', ads.NeedGroupInfoAllHander),
+
+    (r'/needgroupinfo/list_groupid', ads.needScheduleHander_group),  ##(点击获取group_id 详情)
+
+    (r'/needinfo/selectBygruopId(.*)', ads.GroupNeedMapSelectByIdHander),
+    (r'/needinfo/selectById(.*)', ads.NeedInfoSelectById),
+
+    (r'/needschedule/list', ads.needScheduleHander),
+    (r'/needschedule/list_shchedule', ads.needScheduleHander_shchedule),  ##(用于白名单页面,点击获取shchedule_id 详情)
+
+    (r'/needschedule/add', ads.needScheduleAddHander),
+    (r'/needschedule/edit', ads.needScheduleUpdateHander),
+    (r'/needschedule/delete', ads.needScheduleDeleteHander),
+
+    (r'/needschedule/retract', ads.needScheduleRetractHander),
+
+    (r'/needschedule/import', ads.needScheduleIMInfoHanderAll),  ##(适用于schedule管理页面导入白名单)
+    (r'/needschedule/white', ads.needScheduleSEWhiteAll),  ##(适用于schedule管理页面查看对应的白名单)
+
+
+    (r'/contract_package_info/list', ads.ContractPackageInfoHander),  # (用于合同页面查看对应套餐)
+
+    (r'/contract_package_info_all/list', ads.ContractPackageInfoHanderAll),
+    (r'/contract_package_info/add', ads.ContractAddPackageInfoHanderAll),
+    (r'/contract_package_info/delete', ads.ContractDelPackageInfoHanderAll),
+    (r'/contract_package_info/edit', ads.ContractEdPackageInfoHanderAll),
+
+    (r'/whitelist/list', ads.WhitelistInfoHanderAll),  # 白名单
+    (r'/whitelist/add', ads.WhitelistAddInfoHanderAll),
+    (r'/whitelist/delete', ads.WhitelistDelInfoHanderAll),
+    (r'/whitelist/edit', ads.WhitelistEdInfoHanderAll),
+    (r'/whitelist/import', ads.WhitelistIMInfoHanderAll),
+
+    (r'/seleteshchedule/select', ads.seleteshchedule),  ##(获取shchedule,适用于黑白名单:白名单:0,黑名单:1)
+    (r'/seleteshchedule/select_group', ads.seleteshchedulegroup),  ##(获取shchedule所用的group_ID)
+
+    (r'/blacklist/list', ads.BlacklistInfoHanderAll),  # 黑名单
+    (r'/blacklist/add', ads.BlacklistAddInfoHanderAll),
+    (r'/blacklist/delete', ads.BlacklistDelInfoHanderAll),
+    (r'/blacklist/edit', ads.BlicklistEdInfoHanderAll),
+    (r'/blacklist/import', ads.BlacklistIMInfoHanderAll),
+
+    (r'/withdrawanchorlist/list', ads.WithdrawanchorInfoHanderAll),  # 用户提现
+    (r'/withdrawanchorlist/update', ads.WithdrawanchorUpInfoHanderAll),  # 用户提现
+    (r'/withdrawanchorlist/edit', ads.WithdrawanchorEdInfoHanderAll),
+    (r'/withdrawanchorlist/import', ads.WithdrawanchorIMInfoHanderAll),  # 用户提现导入修改提现状态
+
+    (r'/income/list', ads.incomePackListHander),
+    (r'/incomeanchor/list(.*)', ads.incomeAnchorListHander),
+    (r'/incomeanchor/getroominfo', ads.getRoomInfoHander),
+    (r'/incomeanchor/export', ads.incomeAnchorExportHander),
+    (r'/incomeanchor/settle', ads.incomeAnchorsettleHander),
+
+    (r'/playrecord/list', ads.PlayRecordHander),
+    (r'/playrecord/read/list', ads.PlayRecordReadHander),
+    (r'/playrecord/audit', ads.playRecordAuditHander),
+    (r'/playrecord/edit', ads.playRecordEditHander),
+    (r'/playrecord/export', ads.PlayRecordExportHander),
+    (r'/playrecord/import', ads.playRecordImportHanderAll),
+    (r'/playrecord/import/select', ads.playLogImportSelectHander),
+    (r'/playrecord/create', ads.playLogImportCreateHander),
+
+    (r'/advertisingplanlist/list', ads.AdvertisingPlanListHander),  # 广告计划查询
+    (r'/advertisingplanlist/scheduleid', ads.seleteshcheduleadvertisting),  # 广告计划查询(根据level获取对应的schedule_id)
+    (r'/logselectinfo/list', ads.LogSelectInfoListHander),  # log查询
+    (r'/logselectinfo/op_content', ads.LogSelectInfoListHander_content),  ##(log对应的content解析json的数据)
+    (r'/platform4all/list', ads.Paltform4AllList),  # log查询
+    (r'/schedule/flush', ads.fulshDateHander),
+
+    # 任务查询
+    (r'/taskselectlist/list', ads.TaskSelectListHander),  # 任务查询
+    (r'/taskselectlist/play_log', ads.SeleteTaskplaylogList),  # 任务查询(task_id对应的play_log) # 任务查询
+    (r'/taskselectlist/plat_list', ads.SeleteTaskPlatList),  # 任务查询(task_id对应的platform) # 任务查询
+    # 提现用户详情
+    (r'/identitypersonal/list', ads.IdentityPersonalListHander),  # 提现用户详情
+    # (r'/identitypersonal/play_log', ads.SeleteTaskplaylogList),  #任务查询(task_id对应的play_log)
+
+    (r'/autoreview/list', ads.PlayLogAutoListHander),  #自动审核
+    (r'/autoreview/audit', ads.PlayLogAutoAuditHander),  #自动审核
+
+    (r'/autoreview/select', ads.playLogAutoSelectHander),  #自动审核
+    (r'/autoreview/create', ads.playLogAutoCreateHander),  #自动审核
+
+
+    (r'/task/count', ads.TaskRecepetCountHander),  #图demo
+
+
+]

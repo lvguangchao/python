@@ -1,0 +1,43 @@
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, scoped_session
+from .base import SwxJsonHandler
+# 生成orm基类
+Base = declarative_base()
+
+
+class LabelClass(SwxJsonHandler):
+    def RoomLabesNames(self, union_id=0, plat_rooms=''):
+        session = None
+        try:
+            result = self.db_wealth.query
+
+            room_label_list = session.execute(sql).fetchall()
+            ret = list()
+            if room_label_list is not None and len(room_label_list) > 0:
+                for info in room_label_list:
+                    temp = dict()
+                    temp['platform_id'] = info.platform_id
+                    temp['room_id'] = info.room_id
+                    temp['plat_room'] = info.plat_room
+                    temp['label_names'] = info.label_names
+                    ret.append(temp)
+                return ret
+            return None
+
+        except Exception as e:
+
+            return None
+        finally:
+            if session is not None:
+                session.close()
+
+
+
+_db = LabelClass()
+del LabelClass
+
+
+def app_db():
+    global _db
+    return _db

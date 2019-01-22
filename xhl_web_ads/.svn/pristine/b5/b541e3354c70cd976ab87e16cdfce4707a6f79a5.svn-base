@@ -1,0 +1,638 @@
+var v_dlg=null
+var host_table=null
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#autoreview-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='autoreview-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/autoreview/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {title: "auto_id", key: "auto_id",width: 30},
+            {
+                title: "审核比例", key: "", width: 50, render: "formatnum",
+                fields: {auto_max: "auto_max",auto_now:"auto_now",auto_date:'auto_date'}
+            },
+            {
+                title: "结算比例", key: "", width: 50, render: "formatAccount",
+                fields: {verify_num: "verify_num",account_num:"account_num",auto_date:'auto_date'}
+            },
+            {title: "审核日期", key: "auto_date",width: 50},
+            {
+                title: "审核状态",
+                key: "auto_status",
+                width: 10,
+                render: "formatstatus",
+                fields: {auto_status: "auto_status"}
+            },
+             {title: "审核人", key: "auto_user",width: 50},
+            {
+                title: "时间(结算比例)", key: "update_time", width: 180, render: 'format_time',
+                fields: {logtime: 'update_time'}
+            },
+            {
+                title: "日志时间", key: "logtime", width: 180, render: 'format_time',
+                fields: {logtime: 'logtime'}
+            },
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'ads_id', auto_status: 'auto_status'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+    };
+
+     host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    $("#btn-delete-host").click(function () {
+        var ids = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                ids.push(_row_data.ads_id);
+            }
+        });
+
+        if (ids.length === 0) {
+            ywl.notify_error('请选择要批量删除的插件类型！');
+            return;
+        }
+
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/adsinfo/delete', {ids: ids}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('删除成功！');
+                    } else {
+                        ywl.notify_error('删除失败！'+ ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，删除失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要删除选定的素材吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+    v_dlg = ywl.create_autoreview_info_dlg(host_table);
+
+
+    $("#btn-add-host").click(function () {
+         v_dlg.create_show();
+    })
+
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='search']");
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+ywl.create_autoreview_info_dlg = function (tbl) {
+    var autoreview_info_dlg = {};
+    autoreview_info_dlg.dom_id = "#dialog-autoreview-info";
+    autoreview_info_dlg.update = 1;
+    autoreview_info_dlg.tbl = tbl;
+    autoreview_info_dlg.ads_name = '';
+    autoreview_info_dlg.ads_contents = '';
+    autoreview_info_dlg.row_id = 0;
+
+    autoreview_info_dlg.update_show = function (ads_name,  ads_contents,ads_time,row_id) {
+        autoreview_info_dlg.update = 1;
+        autoreview_info_dlg.init(ads_name, ads_contents,ads_time,row_id);
+        $('#dlg-notice').hide();
+        $(autoreview_info_dlg.dom_id).modal();
+    };
+
+    autoreview_info_dlg.create_show = function () {
+        autoreview_info_dlg.update = 0;
+        autoreview_info_dlg.init('', '', '','', 0);
+        $('#dlg-notice').show();
+        $(autoreview_info_dlg.dom_id).modal();
+    };
+
+    autoreview_info_dlg.hide = function () {
+        $(autoreview_info_dlg.dom_id).modal('hide');
+    };
+
+    autoreview_info_dlg.init = function (ads_name, ads_contents,ads_time,row_id) {
+        autoreview_info_dlg.ads_name = ads_name;
+        autoreview_info_dlg.ads_contents = ads_contents;
+        autoreview_info_dlg.ads_time = ads_time;
+        autoreview_info_dlg.row_id = row_id;
+        autoreview_info_dlg.init_dlg();
+    };
+    autoreview_info_dlg.init_dlg = function () {
+
+        $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+        $('#progress1').html("0 bytes");
+        $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+        $('#progress2').html("0 bytes");
+
+        $(autoreview_info_dlg.dom_id + ' #ads_name').val(autoreview_info_dlg.ads_name);
+        $(autoreview_info_dlg.dom_id + ' #ads_contents').val(autoreview_info_dlg.ads_contents);
+        $(autoreview_info_dlg.dom_id + ' #ads_time').val(autoreview_info_dlg.ads_time);
+
+        var obj1 = document.getElementById('ads_materialurl');
+        obj1.outerHTML=obj1.outerHTML
+        var obj2 = document.getElementById('ads_thumbnailurl');
+        obj2.outerHTML=obj2.outerHTML
+        $("#preview").attr("src","");
+
+    };
+
+    autoreview_info_dlg.check_args = function () {
+        var ads_name=$(autoreview_info_dlg.dom_id + ' #ads_name').val()
+        var ads_contents=$(autoreview_info_dlg.dom_id + ' #ads_contents').val()
+        var ads_time=$(autoreview_info_dlg.dom_id + ' #ads_time').val()
+        if(!ads_name||ads_name==""){
+            alert("名称不能为空")
+            return
+        }
+        if(!ads_time||ads_time==""){
+            alert("时间间隔不能为空")
+            return
+        }
+
+        if(!ads_contents||ads_contents==""){
+            alert("描述不能为空")
+            return
+        }
+        autoreview_info_dlg.ads_name = ads_name;
+        autoreview_info_dlg.ads_time = ads_time;
+        autoreview_info_dlg.ads_contents = ads_contents
+        return true;
+    };
+    autoreview_info_dlg.post = function () {
+        function progressHandlingFunction(e) {
+              var ads_materialurl=$("#ads_materialurl").val()
+              if (ads_materialurl && ads_materialurl != "") {
+                  if (e.lengthComputable) {
+                      $('#process_data1').attr({value: e.loaded, max: e.total}); //更新数据到进度条
+                      var percent = e.loaded / e.total * 100;
+                      $('#progress1').html(e.loaded + "/" + e.total + " bytes. " + percent.toFixed(2) + "%");
+                  }
+              }
+            }
+
+        if (autoreview_info_dlg.update === 1) {
+            var t = null  //定时对象
+            var task_gen = null  //task编号
+            $.get("/get/task/gen", function (ret) {
+                    task_gen = ret.data
+                    var fileInput = $("#ads_materialurl")[0];
+                    if (fileInput && fileInput.files.length != 0) {
+                        byteSize = fileInput.files[0].size;
+                        //step-2  定时获取文件上传进度
+                        t = setInterval(function () {
+                            $.get("/get/task/process", {task_gen: task_gen}, function (ret) {
+                                    if (ret.code === TPE_OK) {
+                                        $('#process_data2').attr({value: ret.data, max: byteSize}); //更新数据到进度条
+                                        var percent = ret.data / byteSize * 100;
+                                        $('#progress2').html(ret.data + "/" + byteSize + " bytes. " + percent.toFixed(2) + "%");
+                                    } else {
+                                        ywl.notify_error('获取进度信息失败：' + ret.message);
+                                    }
+                                }
+                            );
+                        }, 200);
+                    }
+
+                    //step-3  开始文件上传，提交表单
+                    // var ads_materialurl = $("#ads_materialurl")[0].files[0];        //获取上传文件名称
+                    var ads_thumbnailurl = $("#ads_thumbnailurl")[0].files[0];        //获取上传文件名称
+                    var form = new FormData();                  //创建表单对象
+                    var ads_name = $("#ads_name").val();
+                    var ads_contents=$("#ads_contents").val();
+                    var ads_time=$("#ads_time").val();
+
+                    form.append("ads_contents", ads_contents);                    //向表单对象添加name和value
+                    // form.append("file", ads_materialurl);
+                    form.append("file_pic", ads_thumbnailurl);
+                    form.append("task_gen", task_gen);
+                    form.append("ads_name", ads_name);
+                    form.append("ads_time", ads_time);
+                    form.append("ads_id", autoreview_info_dlg.row_id);
+                    $.ajax({                                    //jquery的ajax提交
+                        type: 'POST',
+                        url: '/adsinfo/edit',
+                        data: form,                             //提交数据为表单对象
+                        processData: false,                     //默认为 true，数据被处理为 URL 编码格式。如果为 false，则阻止将传入的数据处理为 URL 编码的格式。
+                        contentType: false,                     //指 定 请 求 内 容 的 类 型
+                        success: function (ret) {
+                            clearInterval(t);                       //删除定时请求
+                            $(autoreview_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            if (ret.code === TPE_OK) {
+                                autoreview_info_dlg.tbl.reload();
+                                ywl.notify_success('添加成功！');
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress2').html("0 bytes");
+                                autoreview_info_dlg.hide();
+                            }
+                            else {
+                                ywl.notify_error('添加失败：' + ret.message);
+                            }
+                        },
+                        error: function (xhr, errorText, errorStatus) {  //如果发生错误，返回错误信息
+                            $(autoreview_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress1').html("0 bytes");
+                            $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress2').html("0 bytes");
+                            clearInterval(t);                       //删除定时请求
+                            $('#progress').html("0 bytes");
+                            ywl.notify_error('网络故障，添加失败！');
+                        },
+                        xhr: function () { //获取ajaxSettings中的xhr对象，为它的upload属性绑定progress事件的处理函数
+                            myXhr = $.ajaxSettings.xhr();
+                            if (myXhr.upload) { //检查upload属性是否存在
+                                //绑定progress事件的回调函数
+                                myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
+                            }
+                            return myXhr; //xhr对象返回给jQuery使用
+                        }
+
+                    })
+                }
+            );
+        } else {
+
+            var t = null  //定时对象
+            var task_gen = null  //task编号
+            $.get("/get/task/gen", function (ret) {
+                    task_gen = ret.data
+                    var fileInput = $("#ads_materialurl")[0];
+                    if (fileInput && fileInput.files.length != 0) {
+                        byteSize = fileInput.files[0].size;
+                        //step-2  定时获取文件上传进度
+                        t = setInterval(function () {
+                            $.get("/get/task/process", {task_gen: task_gen}, function (ret) {
+                                    if (ret.code === TPE_OK) {
+                                        $('#process_data2').attr({value: ret.data, max: byteSize}); //更新数据到进度条
+                                        var percent = ret.data / byteSize * 100;
+                                        $('#progress2').html(ret.data + "/" + byteSize + " bytes. " + percent.toFixed(2) + "%");
+                                    } else {
+                                        ywl.notify_error('获取进度信息失败：' + ret.message);
+                                    }
+                                }
+                            );
+                        }, 200);
+                    }
+
+                    //step-3  开始文件上传，提交表单
+                    // var ads_materialurl = $("#ads_materialurl")[0].files[0];        //获取上传文件名称
+                    var ads_thumbnailurl = $("#ads_thumbnailurl")[0].files[0];        //获取上传文件名称
+                    var form = new FormData();                  //创建表单对象
+                    var ads_name = $("#ads_name").val()
+                    var ads_contents=$("#ads_contents").val()
+                    var ads_time=$("#ads_time").val()
+
+                    form.append("ads_contents", ads_contents);                    //向表单对象添加name和value
+                    // form.append("file", ads_materialurl);                //向表单对象添加name和value,将上传文件名称添加到value
+                    form.append("file_pic", ads_thumbnailurl);                //向表单对象添加name和value,将上传文件名称添加到value
+                    form.append("task_gen", task_gen);                //向表单对象添加name和value,将上传文件名称添加到value
+                    form.append("ads_name", ads_name);                //向表单对象添加name和value,将上传文件名称添加到value
+                    form.append("ads_time", ads_time);                //向表单对象添加name和value,将上传文件名称添加到value
+                    $.ajax({                                    //jquery的ajax提交
+                        type: 'POST',
+                        url: '/adsinfo/add',
+                        data: form,                             //提交数据为表单对象
+                        processData: false,                     //默认为 true，数据被处理为 URL 编码格式。如果为 false，则阻止将传入的数据处理为 URL 编码的格式。
+                        contentType: false,                     //指 定 请 求 内 容 的 类 型
+                        success: function (ret) {
+                            clearInterval(t);                       //删除定时请求
+                            $(autoreview_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            if (ret.code === TPE_OK) {
+                                autoreview_info_dlg.tbl.reload();
+                                ywl.notify_success('添加成功！');
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress2').html("0 bytes");
+                                autoreview_info_dlg.hide();
+                            }
+                            else {
+                                ywl.notify_error('添加失败：' + ret.message);
+                            }
+                        },
+                        error: function (xhr, errorText, errorStatus) {  //如果发生错误，返回错误信息
+                            $(autoreview_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress1').html("0 bytes");
+                            $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress2').html("0 bytes");
+                            clearInterval(t);                       //删除定时请求
+                            $('#progress').html("0 bytes");
+                            ywl.notify_error('网络故障，添加失败！');
+                        },
+                        xhr: function () { //获取ajaxSettings中的xhr对象，为它的upload属性绑定progress事件的处理函数
+                            myXhr = $.ajaxSettings.xhr();
+                            if (myXhr.upload) { //检查upload属性是否存在
+                                //绑定progress事件的回调函数
+                                myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
+                            }
+                            return myXhr; //xhr对象返回给jQuery使用
+                        }
+
+                    })
+                }
+            );
+        }
+        return true;
+    };
+    $(autoreview_info_dlg.dom_id + " #btn-save").click(function () {
+        if (!autoreview_info_dlg.check_args()) {
+            return;
+        }
+        autoreview_info_dlg.post();
+    });
+    return autoreview_info_dlg
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        }else if (col_key==="action"){
+            var row_data = tbl.get_row(row_id);
+
+
+            $(cell_obj).find('[ywl-btn-auto]').click(function () {
+
+                 var _fn_sure = function (cb_stack, cb_args) {
+                var that = $(this);
+                var t = null  //定时对象
+                var playnum = null  //task编号
+                $.get("/autoreview/create?id=" + row_data.auto_id, function (ret) {
+                        $("#dialog-auto-info").modal()
+                        playnum = ret.data
+                        //step-2  定时获取文件上传进
+                        t = setInterval(function () {
+                            $.get("/autoreview/select", {playnum: playnum}, function (ret) {
+                                    if (ret.code === TPE_OK) {
+                                        $('#process_data1').attr({value: ret.data["now"], max: ret.data["max"]}); //更新数据到进度条
+                                        $('#progress1').html(ret.data["now"] + "/" + ret.data["max"] + "     ");
+
+                                    } else {
+                                        ywl.notify_error('获取进度信息失败：' + ret.message);
+                                    }
+                                }
+                            );
+                        }, 200);
+
+                        that.attr("disbaled", 'disabled');
+                        var date = row_data.auto_date
+                        var id = row_data.auto_id
+                        $.ajax({
+                            url: '/autoreview/audit',
+                            type: 'POST',
+                            data: {
+                                "date": date,
+                                "id": id,
+                                "playnum": playnum
+                            },
+                            success: function (ret) {
+                                clearInterval(t);    //删除定时请求
+                                if (ret.code === TPE_OK) {
+                                    $("#dialog-auto-info").modal('hide')
+                                    $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                    $('#progress1').html("0 bytes");
+                                    ywl.notify_success('自动化审核成功！');
+                                    alert("自动化审核成功");
+                                    host_table.reload()
+                                    window.location.reload()
+                                } else {
+                                      alert("自动化审核失败");
+                                    ywl.notify_error('自动化审核失败：' + ret.message);
+                                }
+                            },
+                            error: function () {
+                                clearInterval(t);    //删除定时请求
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                ywl.notify_error('网络故障，自动化审核失败！');
+                                alert("自动化审核失败");
+                            }
+                        })
+                    }
+                );}
+                 var cb_stack = CALLBACK_STACK.create();
+
+                ywl.dlg_confirm(cb_stack, {
+                    msg: '<p>您确定要开始自动化审核吗？此操作不可恢复！！</p>',
+                    fn_yes: _fn_sure
+                });
+            });
+
+            $(cell_obj).find('[ywl-btn-flush]').click(function () {
+
+                var date = row_data.auto_date
+                var id = row_data.auto_id
+                ywl.ajax_post_json('/autoreview/flush', {
+                        date: date,
+                        id: id
+                    },
+                    function (ret) {
+                        if (ret.code === TPE_OK) {
+                            host_table.reload()
+                            ywl.notify_success('刷新成功！');
+                        } else {
+                            ywl.notify_error('刷新失败：' + ret.message);
+                        }
+                    },
+                    function () {
+                        ywl.notify_error('网络故障，刷新失败！');
+                    }
+                );
+
+            })
+            
+            $(cell_obj).find('[ywl-btn-syndata]').click(function () {
+                var that=$(this)
+                var date = row_data.auto_date
+                var _fn_sure = function () {
+                    layer.load();
+                    that.attr("disabled",'diasbled');
+                    $.ajax({
+                        url: '/plat/data/synch',
+                        type: 'POST',
+                        data: {
+                            "date": date
+                        },
+                        dataType: 'json',
+                        success: function (ret) {
+                            layer.closeAll('loading');
+                            that.removeAttr('disabled');
+                            if (ret.code === TPE_OK) {
+                                ywl.notify_success('数据同步新成功！');
+                            } else {
+                                ywl.notify_error('数据同步失败'+ret.message);
+                            }
+                        },
+                        error: function (xhr, status, statusText) {
+                            layer.closeAll('loading');
+                            that.removeAttr('disabled');
+                            ywl.notify_error("网络故障");
+                        }
+                    });
+                }
+
+               var cb_stack = CALLBACK_STACK.create();
+
+                ywl.dlg_confirm(cb_stack, {
+                    msg: '<p>您确定要开始同步日期:'+date+' 数据吗？此操作不可恢复！！</p>',
+                    fn_yes: _fn_sure
+                });
+
+            })
+
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        var url='http://download.xiaohulu.com/obs/adsdownload/'
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+        render.format_time = function (row_id, fields) {
+            var temp=fields.logtime?fields.logtime:""
+            if (temp){
+                return '<span class="badge badge-primary mono">' + temp.replace("T", " ") + ' </span>';
+            }else {
+                return ''
+            }
+        };
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            if (fields.auto_status==1){
+                ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" disabled="true">自动化审核</a>&nbsp');
+            }else {
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-auto="' + fields.ID + '">自动化审核</a>&nbsp');
+            }
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-flush="' + fields.ID + '">刷新</a>&nbsp')
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-syndata="' + fields.ID + '">数据同步</a>&nbsp')
+            return ret.join('');
+        }
+
+        render.formatstatus = function (row_id, fields) {
+            var temp = '未知'
+            if (fields.auto_status == 0) {
+                temp = '<span class="badge badge-danger mono">未审核</span>'
+            } else if (fields.auto_status == 1) {
+                temp = '<span class="badge badge-success mono">已审核</span>'
+            }
+            return '<label style="color: red">' + temp + '</label>'
+        }
+        render.formatnum = function (row_id, fields) {
+            var temp=''
+            var date=fields.auto_date?fields.auto_date.substr(0,10):getDate()
+
+            if (fields.auto_now < fields.auto_max) {
+                temp = '<span class="badge badge-danger mono" style="text-decoration: underline">' + fields.auto_now + "/" + fields.auto_max + '</span>'
+            } else {
+                temp = '<span class="badge badge-success mono" style="text-decoration: underline">' + fields.auto_now + "/" + fields.auto_max + '</span>'
+            }
+           return '<a href="/playrecord/read/list?type=1&date=\''+date+ '\'"  target="_blank" >'+temp+'</a>'
+
+        }
+        render.formatAccount = function (row_id, fields) {
+            var temp = ''
+            var min=fields.account_num?fields.account_num:0
+            var max=fields.verify_num?fields.verify_num:0
+            var date=fields.auto_date?fields.auto_date.substr(0,10):getDate()
+
+            if (fields.account_num < fields.verify_num) {
+                temp = '<span class="badge badge-danger mono" style="text-decoration: underline">' + min + "/" + max + '</span>'
+            } else {
+                temp = '<span class="badge badge-success mono" style="text-decoration: underline">' + min + "/" + max + '</span></a>'
+            }
+            return '<a href="/playrecord/read/list?type=2&date=\''+date+ '\'"  target="_blank" >'+temp+'</a>'
+        }
+
+
+
+
+    };
+};
+
+
+function previewFile(that) {
+    var file = that.files[0] // 获取input上传的图片数据;
+    if (file) {
+        var img = new Image();
+        var url = window.URL.createObjectURL(file);
+        $("#preview").attr("src", url);
+    }
+}

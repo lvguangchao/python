@@ -1,0 +1,1084 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" readonly="true" id="e3263bd3-2473-46f3-94ef-65d8aa73bad5" name="Default" comment="" />
+    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
+    <option name="TRACKING_ENABLED" value="true" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CoverageDataManager">
+    <SUITE FILE_PATH="coverage/xhl_web_ads$eom_main.coverage" NAME="eom_main Coverage Results" MODIFIED="1511940931844" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app" />
+    <SUITE FILE_PATH="coverage/xhl_web_ads$identity.coverage" NAME="identity Coverage Results" MODIFIED="1510800841548" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper" />
+  </component>
+  <component name="FileEditorManager">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/__init__.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="291">
+              <caret line="104" column="52" lean-forward="true" selection-start-line="104" selection-start-column="52" selection-end-line="104" selection-end-column="52" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="ads.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="187">
+              <caret line="1983" column="6" lean-forward="false" selection-start-line="1983" selection-start-column="6" selection-end-line="1983" selection-end-column="6" />
+              <folding>
+                <element signature="e#135#174#0" expanded="true" />
+                <marker date="1511936378533" expanded="true" signature="1735:1865" ph="SELECT ads_i... ads_info" />
+                <marker date="1511936378533" expanded="true" signature="11991:12238" ph="SELECT n.nee... ads_need_info" />
+                <marker date="1511936378533" expanded="true" signature="25101:25344" ph="SELECT group... ads_group_info" />
+                <marker date="1511936378533" expanded="true" signature="25146:25260" ph="SELECT GROUP... ads_group_need_map" />
+                <marker date="1511936378533" expanded="true" signature="30080:30354" ph="SELECT s.sch... ads_need_schedule" />
+                <marker date="1511936378533" expanded="true" signature="32049:32250" ph="SELECT s.sch... ads_need_schedule" />
+                <marker date="1511936378533" expanded="true" signature="33522:33783" ph="SELECT group... ads_group_info" />
+                <marker date="1511936378533" expanded="true" signature="33585:33699" ph="SELECT GROUP... ads_group_need_map" />
+                <marker date="1511936378533" expanded="true" signature="54739:54876" ph="SELECT i.anc... ads_group_need_map" />
+                <marker date="1511936378533" expanded="true" signature="55512:55739" ph="SELECT p.pac... ads_need_info" />
+                <marker date="1511936378533" expanded="true" signature="95938:96084" ph="select packa... ads_contract_package_info" />
+                <marker date="1511936378533" expanded="true" signature="99851:100157" ph="select a.inc... T_log_income_anchor" />
+                <marker date="1511936378533" expanded="true" signature="103998:104051" ph="SELECT need_... ads_need_info" />
+                <marker date="1511936378533" expanded="true" signature="110741:111010" ph="select a.inc... T_log_income_anchor" />
+                <marker date="1511936378533" expanded="true" signature="114205:114258" ph="SELECT need_... ads_need_info" />
+                <marker date="1511936378533" expanded="true" signature="114796:115135" ph="SELECT p.pla... ads_task_play_log" />
+                <marker date="1511936378533" expanded="true" signature="124472:124545" ph="select incom... T_log_income_anchor" />
+                <marker date="1511936378533" expanded="true" signature="135961:136379" ph="SELECT k.tas... ads_task_play_log" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="identity_personal_list.mako" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/identity_personal_info/identity_personal_list.mako">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="480">
+              <caret line="63" column="72" lean-forward="false" selection-start-line="63" selection-start-column="57" selection-end-line="63" selection-end-column="72" />
+              <folding>
+                <element signature="n#style#0;n#div#0;n#div#4;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="identity_personal_list.js" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/identity_personal_info/identity_personal_list.js">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="2172">
+              <caret line="408" column="63" lean-forward="true" selection-start-line="408" selection-start-column="63" selection-end-line="408" selection-end-column="63" />
+              <folding>
+                <marker date="1511937259586" expanded="true" signature="7574:7584" ph="..." />
+                <marker date="1511937259586" expanded="true" signature="8013:8023" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="withdrawanchorlist.js" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/withdrawanchor_info/withdrawanchorlist.js">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="256">
+              <caret line="400" column="13" lean-forward="true" selection-start-line="400" selection-start-column="13" selection-end-line="400" selection-end-column="13" />
+              <folding>
+                <marker date="1511854226636" expanded="true" signature="14470:14480" ph="..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="identity.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper/identity.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="384">
+              <caret line="79" column="39" lean-forward="false" selection-start-line="79" selection-start-column="39" selection-end-line="79" selection-end-column="39" />
+              <folding>
+                <marker date="1511927253259" expanded="true" signature="3602:3657" ph="select ads_u... ads_union_group" />
+                <marker date="1511927253259" expanded="true" signature="4442:4487" ph="select union... T_guild_union" />
+                <marker date="1511927253259" expanded="true" signature="6035:6081" ph="select union... T_guild_union" />
+                <marker date="1511927253259" expanded="true" signature="6499:6611" ph="SELECT p.pla... ads_task_play_log" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="_sidebar_nav_menu.mako" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/common/_sidebar_nav_menu.mako">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="240">
+              <caret line="120" column="27" lean-forward="true" selection-start-line="120" selection-start-column="27" selection-end-line="120" selection-end-column="27" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="tables.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/orm/tables.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="494">
+              <caret line="272" column="39" lean-forward="true" selection-start-line="272" selection-start-column="39" selection-end-line="272" selection-end-column="39" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+    </leaf>
+  </component>
+  <component name="FindInProjectRecents">
+    <findStrings>
+      <find>info_data['task_status_name']</find>
+      <find>info_data['close_account']</find>
+      <find>info_data['close_account_name']</find>
+      <find>info_data['is_audit']</find>
+      <find>info_data['is_audit_name']</find>
+      <find>income_from</find>
+      <find>playrecord</find>
+      <find>playrecord/list</find>
+      <find>截图</find>
+      <find>formatShotPath</find>
+      <find>showDetail</find>
+      <find>dialog-playdetail-info</find>
+      <find>没有审核</find>
+      <find>is_audit</find>
+      <find>print</find>
+      <find>app_map().TLogWithdrawAnchor()</find>
+      <find>TIdentityPersonal</find>
+      <find>ret</find>
+      <find>format_task</find>
+      <find>format_task_status</find>
+      <find>front_with</find>
+      <find>format_task_result</find>
+      <find>create_table_filter_leveltype_list</find>
+      <find>create_table_filter_shch_list</find>
+      <find>create_table_filter_is_audit_list</find>
+      <find>create_table_filter_close_account_list</find>
+      <find>create_table_filter_task_result_list</find>
+      <find>create_table_filter_task_status_list</find>
+      <find>task_status</find>
+      <find>create_table_filter_verify_status_list</find>
+    </findStrings>
+    <replaceStrings>
+      <replace>task_name</replace>
+      <replace>ptype.task_result</replace>
+      <replace>task_status</replace>
+      <replace>ptype.task_status</replace>
+      <replace>task_status_name</replace>
+      <replace>ptype.close_account</replace>
+      <replace>close_account_name</replace>
+      <replace>ptype.is_audit</replace>
+      <replace>is_audit_name</replace>
+    </replaceStrings>
+  </component>
+  <component name="IdeDocumentHistory">
+    <option name="CHANGED_PATHS">
+      <list>
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/conf/web-xhl-rank.conf" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/base.py" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/orm/db.py" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/income/incomeAnchor_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/income/income_anchor.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/export.py" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/contractionpackage_manager/contractionfopackage_info/contractionpackageinfo.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/advertising_plan_info/advertising_plan_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/blacklist_info/blacklist_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/need_manager/needinfo.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/need_group/needgroup_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/need_schedule/needschedule_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/whitelist_info/whitelist_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/blacklist_manager/blacklist_info/blacklist.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/withdrawanchor_info/withdrawanchor_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/need_schedule/need_schedule.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/whitelist_manager/whitelist_info/whitelist.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/withdrawanchor_info/withdrawanchorlist.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/task_select_info/task_sekect_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/advertisting_plan_info/advertising_plan_list.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/logselect_plan_info/logselect_plan_list.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/contraction_manager/contractionfo_info/contractioninfo.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/logselect_info/logselect_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/orm/tables.py" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/task_select_info/task_select_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/task_select_info/task_select_list.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper/identity.py" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/__init__.py" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/identity_personal_info/identity_personal_list.mako" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/identity_personal_info/identity_personal_list.js" />
+        <option value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/common/_sidebar_nav_menu.mako" />
+      </list>
+    </option>
+  </component>
+  <component name="JsBuildToolGruntFileManager" detection-done="true" sorting="DEFINITION_ORDER" />
+  <component name="JsBuildToolPackageJson" detection-done="true" sorting="DEFINITION_ORDER" />
+  <component name="JsFlowSettings">
+    <service-enabled>false</service-enabled>
+    <exe-path />
+    <annotation-enable>false</annotation-enable>
+    <other-services-enabled>false</other-services-enabled>
+    <auto-save>true</auto-save>
+  </component>
+  <component name="JsGulpfileManager">
+    <detection-done>true</detection-done>
+    <sorting>DEFINITION_ORDER</sorting>
+  </component>
+  <component name="ProjectFrameBounds" extendedState="7">
+    <option name="x" value="559" />
+    <option name="y" value="51" />
+    <option name="width" value="1357" />
+    <option name="height" value="988" />
+  </component>
+  <component name="ProjectView">
+    <navigator currentView="ProjectPane" proportions="" version="1">
+      <flattenPackages />
+      <showMembers />
+      <showModules />
+      <showLibraryContents />
+      <hideEmptyPackages />
+      <abbreviatePackageNames />
+      <autoscrollToSource />
+      <autoscrollFromSource />
+      <sortByType />
+      <manualOrder />
+      <foldersAlwaysOnTop value="true" />
+    </navigator>
+    <panes>
+      <pane id="Scratches" />
+      <pane id="Scope" />
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="app" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="app" type="462c0819:PsiDirectoryNode" />
+              <item name="eom_app" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="static" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="static" type="462c0819:PsiDirectoryNode" />
+              <item name="js" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="static" type="462c0819:PsiDirectoryNode" />
+              <item name="js" type="462c0819:PsiDirectoryNode" />
+              <item name="ads_manager" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="static" type="462c0819:PsiDirectoryNode" />
+              <item name="js" type="462c0819:PsiDirectoryNode" />
+              <item name="ads_manager" type="462c0819:PsiDirectoryNode" />
+              <item name="identity_personal_info" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="static" type="462c0819:PsiDirectoryNode" />
+              <item name="js" type="462c0819:PsiDirectoryNode" />
+              <item name="ads_manager" type="462c0819:PsiDirectoryNode" />
+              <item name="withdrawanchor_info" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="view" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="view" type="462c0819:PsiDirectoryNode" />
+              <item name="ads_manager" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="xhl_web_ads" type="b2602c69:ProjectViewProjectNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="trunk" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_web_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="site" type="462c0819:PsiDirectoryNode" />
+              <item name="xhl_ads" type="462c0819:PsiDirectoryNode" />
+              <item name="view" type="462c0819:PsiDirectoryNode" />
+              <item name="ads_manager" type="462c0819:PsiDirectoryNode" />
+              <item name="identity_personal_info" type="462c0819:PsiDirectoryNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
+    </panes>
+  </component>
+  <component name="PropertiesComponent">
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../git/xhl_adsmanage" />
+    <property name="SearchEverywhereHistoryKey" value="&#9;FILE&#9;file://C:/Users/keke/Desktop/xhl_web_ads/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/__init__.py" />
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\keke\Desktop\xhl_web_ads\trunk\xhl_web_ads\site\xhl_ads\static\download" />
+    </key>
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\keke\Desktop\xhl_web_ads\trunk\xhl_web_ads\site\xhl_ads\static\js\ads_manager" />
+      <recent name="C:\Users\keke\Desktop\xhl_web_ads\trunk\xhl_web_ads\site\xhl_ads\view\ads_manager" />
+      <recent name="C:\Users\keke\Desktop\xhl_web_ads\trunk\xhl_web_ads\site\xhl_ads\static\download" />
+      <recent name="C:\Users\keke\Desktop\xhl_web_ads\trunk\xhl_web_ads\site\xhl_ads\app\eom_app\controller" />
+    </key>
+  </component>
+  <component name="RunDashboard">
+    <option name="ruleStates">
+      <list>
+        <RuleState>
+          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
+        </RuleState>
+        <RuleState>
+          <option name="name" value="StatusDashboardGroupingRule" />
+        </RuleState>
+      </list>
+    </option>
+  </component>
+  <component name="RunManager" selected="Python.eom_main">
+    <configuration name="eom_main" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="xhl_web_ads" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_main.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+    </configuration>
+    <configuration name="identity" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="xhl_web_ads" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper/identity.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+    </configuration>
+    <list size="2">
+      <item index="0" class="java.lang.String" itemvalue="Python.eom_main" />
+      <item index="1" class="java.lang.String" itemvalue="Python.identity" />
+    </list>
+    <recent_temporary>
+      <list size="2">
+        <item index="0" class="java.lang.String" itemvalue="Python.eom_main" />
+        <item index="1" class="java.lang.String" itemvalue="Python.identity" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="ShelveChangesManager" show_recycled="false">
+    <option name="remove_strategy" value="false" />
+  </component>
+  <component name="SvnConfiguration" cleanupOnStartRun="true">
+    <configuration>C:\Users\keke\AppData\Roaming\Subversion</configuration>
+    <supportedVersion>125</supportedVersion>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="e3263bd3-2473-46f3-94ef-65d8aa73bad5" name="Default" comment="" />
+      <created>1510213538951</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1510213538951</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="ToolWindowManager">
+    <frame x="-8" y="-8" width="1936" height="1056" extended-state="7" />
+    <layout>
+      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.38839287" sideWeight="0.50319827" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32924107" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.25892857" sideWeight="0.4978678" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.2260128" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.38839287" sideWeight="0.4968017" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
+      <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+    </layout>
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="VcsContentAnnotationSettings">
+    <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py</url>
+          <line>1172</line>
+          <option name="timeStamp" value="57" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py</url>
+          <line>2531</line>
+          <option name="timeStamp" value="60" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py</url>
+          <line>2534</line>
+          <option name="timeStamp" value="62" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py</url>
+          <line>2526</line>
+          <option name="timeStamp" value="63" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py</url>
+          <line>2536</line>
+          <option name="timeStamp" value="65" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py</url>
+          <line>2530</line>
+          <option name="timeStamp" value="66" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py</url>
+          <line>3203</line>
+          <option name="timeStamp" value="70" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py</url>
+          <line>3200</line>
+          <option name="timeStamp" value="73" />
+        </line-breakpoint>
+      </breakpoints>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
+      <option name="time" value="94" />
+    </breakpoint-manager>
+    <watches-manager />
+  </component>
+  <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/packages/packages-common/sqlalchemy/sql/default_comparator.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="402">
+          <caret line="173" column="47" lean-forward="false" selection-start-line="173" selection-start-column="47" selection-end-line="173" selection-end-column="47" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/packages/packages-common/dozer/media/javascript/jquery-1.2.6.min.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="168">
+          <caret line="18" column="827" lean-forward="false" selection-start-line="18" selection-start-column="827" selection-end-line="18" selection-end-column="827" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/packages/packages-common/sqlalchemy/orm/mapper.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="168">
+          <caret line="1276" column="0" lean-forward="false" selection-start-line="1276" selection-start-column="0" selection-end-line="1276" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/contractpackage_info/contractpackage_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="624">
+          <caret line="157" column="38" lean-forward="false" selection-start-line="157" selection-start-column="38" selection-end-line="157" selection-end-column="38" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/conf/web-xhl-rank.conf2">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.PyCharm2017.2/system/python_stubs/-1102279386/builtins.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="208">
+          <caret line="2888" column="8" lean-forward="false" selection-start-line="2888" selection-start-column="8" selection-end-line="2888" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/toc.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="416">
+          <caret line="65" column="0" lean-forward="true" selection-start-line="65" selection-start-column="0" selection-end-line="65" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/need_manager/needinfo.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="297">
+          <caret line="462" column="0" lean-forward="true" selection-start-line="462" selection-start-column="0" selection-end-line="462" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/need_group/needgroup_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="224">
+          <caret line="88" column="117" lean-forward="true" selection-start-line="88" selection-start-column="117" selection-end-line="88" selection-end-column="117" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/need_group/needgroupinfo.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="408">
+          <caret line="451" column="43" lean-forward="true" selection-start-line="451" selection-start-column="43" selection-end-line="451" selection-end-column="43" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/blacklist_info/blacklist_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="144">
+          <caret line="27" column="62" lean-forward="true" selection-start-line="27" selection-start-column="62" selection-end-line="27" selection-end-column="62" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/income/incomeAnchor_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="302">
+          <caret line="50" column="62" lean-forward="false" selection-start-line="50" selection-start-column="31" selection-end-line="50" selection-end-column="62" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/app/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/income/income_anchor.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-176">
+          <caret line="61" column="88" lean-forward="true" selection-start-line="61" selection-start-column="88" selection-end-line="61" selection-end-column="88" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ui/controls.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="585">
+          <caret line="1606" column="22" lean-forward="false" selection-start-line="1606" selection-start-column="22" selection-end-line="1606" selection-end-column="22" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/need_schedule/need_schedule_add.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="208">
+          <caret line="13" column="37" lean-forward="true" selection-start-line="13" selection-start-column="37" selection-end-line="13" selection-end-column="37" />
+          <folding>
+            <marker date="1511763909297" expanded="true" signature="3506:3535" ph="..." />
+            <marker date="1511763909297" expanded="true" signature="3893:3920" ph="..." />
+            <marker date="1511763909297" expanded="true" signature="3968:3997" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/need_schedule/needshcdule_create.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="496">
+          <caret line="31" column="9" lean-forward="true" selection-start-line="31" selection-start-column="9" selection-end-line="31" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/need_schedule/needschedule_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="59">
+          <caret line="163" column="0" lean-forward="false" selection-start-line="163" selection-start-column="0" selection-end-line="192" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/export.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1056">
+          <caret line="70" column="27" lean-forward="false" selection-start-line="70" selection-start-column="27" selection-end-line="70" selection-end-column="27" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/blacklist_manager/blacklist_info/blacklist.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="416">
+          <caret line="83" column="51" lean-forward="false" selection-start-line="83" selection-start-column="51" selection-end-line="83" selection-end-column="51" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/advertising_plan_info/advertising_plan_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="381">
+          <caret line="48" column="47" lean-forward="false" selection-start-line="48" selection-start-column="47" selection-end-line="48" selection-end-column="47" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/income/imcomePack.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="379">
+          <caret line="284" column="54" lean-forward="false" selection-start-line="284" selection-start-column="47" selection-end-line="284" selection-end-column="54" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/need_schedule/need_schedule.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="496">
+          <caret line="151" column="7" lean-forward="false" selection-start-line="151" selection-start-column="7" selection-end-line="151" selection-end-column="7" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/orm/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/whitelist_info/whitelist_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2496">
+          <caret line="156" column="34" lean-forward="true" selection-start-line="156" selection-start-column="34" selection-end-line="156" selection-end-column="34" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/whitelist_manager/whitelist_info/whitelist.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="224">
+          <caret line="50" column="13" lean-forward="true" selection-start-line="50" selection-start-column="13" selection-end-line="50" selection-end-column="13" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/toc_const.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="357">
+          <caret line="65" column="14" lean-forward="false" selection-start-line="65" selection-start-column="4" selection-end-line="65" selection-end-column="14" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/contractionpackage_manager/contractionfopackage_info/contractionpackageinfo.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="880">
+          <caret line="55" column="26" lean-forward="true" selection-start-line="55" selection-start-column="26" selection-end-line="55" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper/captcha.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="369">
+          <caret line="196" column="0" lean-forward="true" selection-start-line="196" selection-start-column="0" selection-end-line="196" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/logselect_plan_info/logselect_plan_list.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="195">
+          <caret line="110" column="4" lean-forward="false" selection-start-line="110" selection-start-column="4" selection-end-line="110" selection-end-column="102" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/advertisting_plan_info/advertising_plan_list.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="307">
+          <caret line="50" column="81" lean-forward="false" selection-start-line="50" selection-start-column="81" selection-end-line="50" selection-end-column="81" />
+          <folding>
+            <marker date="1511857352220" expanded="true" signature="8323:8333" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/contraction_manager/contractionfo_info/contractioninfo.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="320">
+          <caret line="20" column="9" lean-forward="false" selection-start-line="20" selection-start-column="9" selection-end-line="20" selection-end-column="9" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/conf/web-xhl-rank.conf">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="480">
+          <caret line="30" column="0" lean-forward="true" selection-start-line="30" selection-start-column="0" selection-end-line="30" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/playRecord/playRecord_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="416">
+          <caret line="139" column="56" lean-forward="false" selection-start-line="139" selection-start-column="56" selection-end-line="139" selection-end-column="56" />
+          <folding>
+            <marker date="1511925347255" expanded="true" signature="16836:16869" ph="{...}" />
+            <marker date="1511925347255" expanded="true" signature="16836:16879" ph="{&quot;elem&quot;: '##end_time'...}" />
+            <marker date="1511925347255" expanded="true" signature="16836:16887" ph="{...}" />
+            <marker date="1511925347255" expanded="true" signature="16836:16898" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/withdrawanchor_info/withdrawanchor_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="32">
+          <caret line="35" column="43" lean-forward="false" selection-start-line="35" selection-start-column="43" selection-end-line="35" selection-end-column="43" />
+          <folding>
+            <marker date="1511925347212" expanded="true" signature="4730:4747" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="4925:4984" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5098:6580" ph="..." />
+            <marker date="1511925347212" expanded="false" signature="5160:5181" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5182:5668" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5259:5331" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5407:5478" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5555:5649" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5558:5618" ph="..." />
+            <marker date="1511925347212" expanded="false" signature="5705:5717" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5718:5845" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5740:5826" ph="..." />
+            <marker date="1511925347212" expanded="false" signature="5872:5902" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5903:6564" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5954:6545" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="5998:6522" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6144:6278" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6155:6273" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6201:6264" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6307:6496" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6347:6434" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6719:8006" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6766:7999" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6802:7988" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="6841:6911" ph="..." />
+            <marker date="1511925347212" expanded="false" signature="6972:7011" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="7012:7297" ph="..." />
+            <marker date="1511925347212" expanded="false" signature="7076:7093" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="7094:7278" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="7174:7243" ph="..." />
+            <marker date="1511925347212" expanded="false" signature="7220:7242" ph="..." />
+            <marker date="1511925347212" expanded="false" signature="7358:7379" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="7380:7599" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="7488:7580" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="7639:7973" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="7868:7954" ph="..." />
+            <marker date="1511925347212" expanded="true" signature="7871:7925" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/logselect_info/logselect_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="368">
+          <caret line="23" column="49" lean-forward="true" selection-start-line="23" selection-start-column="49" selection-end-line="23" selection-end-column="49" />
+          <folding>
+            <element signature="n#style#0;n#div#4;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#input#0;n#div#4;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#6;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <marker date="1511925324161" expanded="true" signature="1163:1184" ph="..." />
+            <marker date="1511925324161" expanded="true" signature="1667:1686" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/task_select_info/task_select_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="227">
+          <caret line="227" column="36" lean-forward="false" selection-start-line="227" selection-start-column="36" selection-end-line="227" selection-end-column="36" />
+          <folding>
+            <element signature="n#style#0;n#div#1;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#2;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#3;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#span#0;n#div#3;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#div#3;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#4;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#div#4;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#5;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#span#0;n#div#5;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#div#5;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#6;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#span#0;n#div#6;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#div#6;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#7;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#span#0;n#div#7;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#div#7;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#8;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#span#0;n#div#8;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#div#8;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#9;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+            <element signature="n#style#0;n#div#0;n#div#2;n#!!top" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/task_select_info/task_select_list.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="352">
+          <caret line="151" column="13" lean-forward="true" selection-start-line="151" selection-start-column="13" selection-end-line="151" selection-end-column="13" />
+          <folding>
+            <marker date="1511926372408" expanded="true" signature="8308:8318" ph="..." />
+            <marker date="1511926372408" expanded="true" signature="8889:8899" ph="..." />
+            <marker date="1511926372408" expanded="true" signature="9469:9479" ph="..." />
+            <marker date="1511926372408" expanded="true" signature="9918:9928" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper/identity.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="384">
+          <caret line="79" column="39" lean-forward="false" selection-start-line="79" selection-start-column="39" selection-end-line="79" selection-end-column="39" />
+          <folding>
+            <marker date="1511927253259" expanded="true" signature="3602:3657" ph="select ads_u... ads_union_group" />
+            <marker date="1511927253259" expanded="true" signature="4442:4487" ph="select union... T_guild_union" />
+            <marker date="1511927253259" expanded="true" signature="6035:6081" ph="select union... T_guild_union" />
+            <marker date="1511927253259" expanded="true" signature="6499:6611" ph="SELECT p.pla... ads_task_play_log" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/orm/tables.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="494">
+          <caret line="272" column="39" lean-forward="true" selection-start-line="272" selection-start-column="39" selection-end-line="272" selection-end-column="39" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/ads.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="187">
+          <caret line="1983" column="6" lean-forward="false" selection-start-line="1983" selection-start-column="6" selection-end-line="1983" selection-end-column="6" />
+          <folding>
+            <element signature="e#135#174#0" expanded="true" />
+            <marker date="1511936378533" expanded="true" signature="1735:1865" ph="SELECT ads_i... ads_info" />
+            <marker date="1511936378533" expanded="true" signature="11991:12238" ph="SELECT n.nee... ads_need_info" />
+            <marker date="1511936378533" expanded="true" signature="25101:25344" ph="SELECT group... ads_group_info" />
+            <marker date="1511936378533" expanded="true" signature="25146:25260" ph="SELECT GROUP... ads_group_need_map" />
+            <marker date="1511936378533" expanded="true" signature="30080:30354" ph="SELECT s.sch... ads_need_schedule" />
+            <marker date="1511936378533" expanded="true" signature="32049:32250" ph="SELECT s.sch... ads_need_schedule" />
+            <marker date="1511936378533" expanded="true" signature="33522:33783" ph="SELECT group... ads_group_info" />
+            <marker date="1511936378533" expanded="true" signature="33585:33699" ph="SELECT GROUP... ads_group_need_map" />
+            <marker date="1511936378533" expanded="true" signature="54739:54876" ph="SELECT i.anc... ads_group_need_map" />
+            <marker date="1511936378533" expanded="true" signature="55512:55739" ph="SELECT p.pac... ads_need_info" />
+            <marker date="1511936378533" expanded="true" signature="95938:96084" ph="select packa... ads_contract_package_info" />
+            <marker date="1511936378533" expanded="true" signature="99851:100157" ph="select a.inc... T_log_income_anchor" />
+            <marker date="1511936378533" expanded="true" signature="103998:104051" ph="SELECT need_... ads_need_info" />
+            <marker date="1511936378533" expanded="true" signature="110741:111010" ph="select a.inc... T_log_income_anchor" />
+            <marker date="1511936378533" expanded="true" signature="114205:114258" ph="SELECT need_... ads_need_info" />
+            <marker date="1511936378533" expanded="true" signature="114796:115135" ph="SELECT p.pla... ads_task_play_log" />
+            <marker date="1511936378533" expanded="true" signature="124472:124545" ph="select incom... T_log_income_anchor" />
+            <marker date="1511936378533" expanded="true" signature="135961:136379" ph="SELECT k.tas... ads_task_play_log" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/playRecord/playRecord.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="464">
+          <caret line="315" column="42" lean-forward="true" selection-start-line="315" selection-start-column="42" selection-end-line="315" selection-end-column="42" />
+          <folding>
+            <marker date="1511925347150" expanded="true" signature="18507:18521" ph="..." />
+            <marker date="1511925347150" expanded="true" signature="18776:18790" ph="..." />
+            <marker date="1511925347150" expanded="true" signature="19733:19743" ph="..." />
+            <marker date="1511925347150" expanded="true" signature="20138:20148" ph="..." />
+            <marker date="1511925347150" expanded="true" signature="20636:20646" ph="..." />
+            <marker date="1511925347150" expanded="true" signature="20774:20784" ph="..." />
+            <marker date="1511925347150" expanded="true" signature="20953:20967" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/helper/ExcelImportManager.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/withdrawanchor_info/withdrawanchorlist.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="256">
+          <caret line="400" column="13" lean-forward="true" selection-start-line="400" selection-start-column="13" selection-end-line="400" selection-end-column="13" />
+          <folding>
+            <marker date="1511854226636" expanded="true" signature="14470:14480" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/static/js/ads_manager/identity_personal_info/identity_personal_list.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2172">
+          <caret line="408" column="63" lean-forward="true" selection-start-line="408" selection-start-column="63" selection-end-line="408" selection-end-column="63" />
+          <folding>
+            <marker date="1511937259586" expanded="true" signature="7574:7584" ph="..." />
+            <marker date="1511937259586" expanded="true" signature="8013:8023" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/app/eom_app/controller/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="291">
+          <caret line="104" column="52" lean-forward="true" selection-start-line="104" selection-start-column="52" selection-end-line="104" selection-end-column="52" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/ads_manager/identity_personal_info/identity_personal_list.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="480">
+          <caret line="63" column="72" lean-forward="false" selection-start-line="63" selection-start-column="57" selection-end-line="63" selection-end-column="72" />
+          <folding>
+            <element signature="n#style#0;n#div#0;n#div#4;n#div#0;n#div#0;n#div#0;n#!!top" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/trunk/xhl_web_ads/site/xhl_ads/view/common/_sidebar_nav_menu.mako">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="240">
+          <caret line="120" column="27" lean-forward="true" selection-start-line="120" selection-start-column="27" selection-end-line="120" selection-end-column="27" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+  </component>
+</project>

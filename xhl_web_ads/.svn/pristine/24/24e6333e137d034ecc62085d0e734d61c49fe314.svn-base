@@ -1,0 +1,359 @@
+var vm_dlg=null
+var get_v_select=null
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#versionmap-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='version-map']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/versionmap/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {title: "ID", key: "id",width: 30},
+            {title: "当前版本号", key: "current_version",width: 50},
+            {title: "升级版本号", key: "update_version", width: 10},
+            {title: "版本类型", key: "vtype_name",width: 180},
+            {title: "标志", key: "update_sign",width: 180,render:"sign_format",
+                fields: {update_sign: 'update_sign'}
+
+            },
+            {
+                title: "日志时间", key: "logtime", width: 180, render: 'format_time',
+                fields: {logtime: 'logtime'}
+            },
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'id',  protocol: 'user_id'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+    var host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    $("#btn-delete-host").click(function () {
+        var vmap_list = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                vmap_list.push(_row_data.id);
+            }
+        });
+
+        if (vmap_list.length === 0) {
+            ywl.notify_error('请选择要批量删除的数据！');
+            return;
+        }
+
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/versionmap/delete', {vmap_list: vmap_list}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('删除成功！');
+                    } else {
+                        ywl.notify_error('删除失败！'+ ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，删除失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要删除选定的版本吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+      //初始化版本类型选择框
+     $.get("/vtype/list4all", function (ret) {
+         var auxArr = [];
+         $.each(ret, function(k, v){
+                      auxArr[k] = "<option value='" + v["vtype_code"] + "'>" + v["vtype_name"] + "</option>";
+                });
+         $('#vtype').append(auxArr.join(''));
+        }
+     );
+
+     get_v_select = function (vtype,cb) {
+
+        $("#c-version option").remove();
+        $("#u-version option").remove();
+        $.get("/versionlist4all/list", {vtype: vtype}, function (ret) {
+            var auxArr = [];
+            $.each(ret, function (k, v) {
+                auxArr[k] = "<option value='" + v + "'>" + v + "</option>";
+            });
+            auxArr.push('<option value="0">0</option>','<option value="test">test</option>')
+            $('#current_version').append(auxArr.join(''));
+            $('#update_version').append(auxArr.join(''));
+             cb&&cb()
+            $('#c-version').show()
+            $('#u-version').show()
+
+
+        });
+    }
+
+    get_v_select("")
+
+      //版本下拉框选择事件
+     $("#vtype").change(function () {
+         var vtype=$(this).children('option:selected').val();//这就是selected的值
+         get_v_select(vtype)
+     })
+
+      // //获取版本类型字典
+      // $.get("/vtype/map", function (ret) {
+      //     ywl.vtype_map=ret
+      //
+      // });
+
+
+
+
+    v_dlg = ywl.create_vmap_info_dlg_dlg(host_table);
+
+    $("#btn-add-host").click(function () {
+         v_dlg.create_show();
+    })
+
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+ywl.create_vmap_info_dlg_dlg = function (tbl) {
+    var vmap_info_dlg_dlg = {};
+    vmap_info_dlg_dlg.dom_id = "#dialog-versionmap-info";
+    vmap_info_dlg_dlg.update = 1;
+    vmap_info_dlg_dlg.tbl = tbl;
+    vmap_info_dlg_dlg.current_version = '';
+    vmap_info_dlg_dlg.update_version = '';
+    vmap_info_dlg_dlg.update_sign = 0;
+    vmap_info_dlg_dlg.vtype = 0;
+    vmap_info_dlg_dlg.row_id = 0;
+
+    vmap_info_dlg_dlg.update_show = function (current_version, update_version, vtype,update_sign,row_id) {
+        vmap_info_dlg_dlg.update = 1;
+        vmap_info_dlg_dlg.init(current_version, update_version, vtype,update_sign,row_id);
+        $('#dlg-notice').hide();
+        $(vmap_info_dlg_dlg.dom_id).modal();
+    };
+
+    vmap_info_dlg_dlg.create_show = function () {
+        vmap_info_dlg_dlg.update = 0;
+        vmap_info_dlg_dlg.init('', '', 0, 0);
+        $('#dlg-notice').show();
+        $(vmap_info_dlg_dlg.dom_id).modal();
+    };
+
+    vmap_info_dlg_dlg.hide = function () {
+        $(vmap_info_dlg_dlg.dom_id).modal('hide');
+    };
+
+    vmap_info_dlg_dlg.init = function (current_version, update_version, vtype,update_sign,row_id) {
+        vmap_info_dlg_dlg.current_version = current_version;
+        vmap_info_dlg_dlg.update_version = update_version;
+        vmap_info_dlg_dlg.update_sign = update_sign;
+        vmap_info_dlg_dlg.vtype = vtype;
+        vmap_info_dlg_dlg.row_id = row_id;
+        vmap_info_dlg_dlg.init_dlg();
+    };
+    vmap_info_dlg_dlg.init_dlg = function () {
+
+        $(vmap_info_dlg_dlg.dom_id + ' #vtype').val(vmap_info_dlg_dlg.vtype);
+        $(vmap_info_dlg_dlg.dom_id + ' #vmap_list_id').val(vmap_info_dlg_dlg.row_id);
+        if (vmap_info_dlg_dlg.update === 1) {
+            get_v_select(vmap_info_dlg_dlg.vtype,function () {
+                $(vmap_info_dlg_dlg.dom_id + ' #current_version').val(vmap_info_dlg_dlg.current_version);
+                $(vmap_info_dlg_dlg.dom_id + ' #update_version').val(vmap_info_dlg_dlg.update_version);
+                $(vmap_info_dlg_dlg.dom_id + ' #update_sign').val(vmap_info_dlg_dlg.update_sign);
+            })
+            $('#c-version').show()
+            $('#u-version').show()
+        } else {
+            $(vmap_info_dlg_dlg.dom_id + ' #current_version').val(vmap_info_dlg_dlg.current_version);
+            $(vmap_info_dlg_dlg.dom_id + ' #update_version').val(vmap_info_dlg_dlg.update_version);
+            $(vmap_info_dlg_dlg.dom_id + ' #update_sign').val(vmap_info_dlg_dlg.update_sign);
+            $('#c-version').hide()
+            $('#u-version').hide()
+
+        }
+
+    };
+
+    vmap_info_dlg_dlg.check_args = function () {
+        var vtype=$(vmap_info_dlg_dlg.dom_id + ' #vtype').val()
+        if (!vtype||vtype==""){
+            alert("版本类型不能为空")
+            return
+        }
+        vmap_info_dlg_dlg.current_version = $(vmap_info_dlg_dlg.dom_id + ' #current_version').val();
+        vmap_info_dlg_dlg.update_version = $(vmap_info_dlg_dlg.dom_id + ' #update_version').val();
+        vmap_info_dlg_dlg.update_sign = $(vmap_info_dlg_dlg.dom_id + ' #update_sign').val();
+        vmap_info_dlg_dlg.vtype = $(vmap_info_dlg_dlg.dom_id + ' #vtype').val();
+        vmap_info_dlg_dlg.row_id = $(vmap_info_dlg_dlg.dom_id + ' #vmap_list_id').val();
+
+        return true;
+    };
+    vmap_info_dlg_dlg.post = function () {
+        if (vmap_info_dlg_dlg.update === 1) {
+            ywl.ajax_post_json('/versionmap/edit', {current_version: vmap_info_dlg_dlg.current_version, update_version: vmap_info_dlg_dlg.update_version,
+                vtype:vmap_info_dlg_dlg.vtype ,id:vmap_info_dlg_dlg.row_id,update_sign:vmap_info_dlg_dlg.update_sign},
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        vmap_info_dlg_dlg.tbl.reload();
+                        ywl.notify_success('更新类型成功！');
+                        vmap_info_dlg_dlg.hide();
+                    } else {
+                        ywl.notify_error('更新类型失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，更新类型失败！');
+                }
+            );
+
+        } else {
+             ywl.ajax_post_json('/versionmap/add', {current_version: vmap_info_dlg_dlg.current_version, update_version: vmap_info_dlg_dlg.update_version,
+                vtype:vmap_info_dlg_dlg.vtype,update_sign:vmap_info_dlg_dlg.update_sign },
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        vmap_info_dlg_dlg.tbl.reload();
+                        ywl.notify_success('添加类型成功！');
+                        vmap_info_dlg_dlg.hide();
+                    }  else {
+                        ywl.notify_error('添加类型失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，添加类型失败！');
+                }
+            );
+
+        }
+        return true;
+    };
+    $(vmap_info_dlg_dlg.dom_id + " #btn-save").click(function () {
+        if (!vmap_info_dlg_dlg.check_args()) {
+            return;
+        }
+        vmap_info_dlg_dlg.post();
+    });
+    return vmap_info_dlg_dlg
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        }else if (col_key==="action"){
+            var row_data = tbl.get_row(row_id);
+
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+                v_dlg.update_show(row_data.current_version,row_data.update_version,row_data.vtype,row_data.update_sign,row_data.id)
+            });
+
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">修改</a>&nbsp');
+            return ret.join('');
+        }
+         render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T"," ") + ' </span>';
+        };
+
+        render.code_to_name = function (row_id, fields) {
+             return '<span class="badge badge-primary mono">' +fields.vtype + ' </span>';
+        };
+
+        render.sign_format = function (row_id, fields) {
+            var sign_name='未知'
+             if (fields.update_sign=="0"){
+                sign_name="忽略"
+             }else if (fields.update_sign=="1"){
+                sign_name="必须"
+             }else if (fields.update_sign=="2"){
+                sign_name="可升可不升"
+             }
+             return '<span class="badge badge-primary mono">' +sign_name + ' </span>';
+        };
+    };
+};
+
+

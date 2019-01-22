@@ -1,0 +1,229 @@
+<%!
+    page_title_ = 'schedule管理'
+    page_menu_ = ['market', 'needschedule']
+    page_id_ = 'needschedule'
+%>
+<%inherit file="../../page_base.mako"/>
+<%block name="extend_js">
+    <script type="text/javascript" src="${ static_url('plugins/laydate/laydate.js') }"></script>
+    <script type="text/javascript" src="${ static_url('js/ads_manager/need_schedule/need_schedule.js') }"></script>
+    <link href="${ static_url('css/style.css') }" rel="stylesheet">
+</%block>
+<%block name="breadcrumb">
+    <ol class="breadcrumb">
+        <li><i class="fa fa-server fa-fw"></i> ${self.attr.page_title_}</li>
+    </ol>
+</%block>
+
+<div class="page-content">
+    <div class="box" id="needschedule-list">
+        <!-- begin filter -->
+        <div class="page-filter">
+            <div class="" style="float:right;">
+                <a href="javascript:;" class="btn btn-sm btn-primary" ywl-filter="reload"><i
+                        class="fa fa-repeat fa-fw"></i> 刷新</a>
+            </div>
+            <div class="" style="float:right;">
+                <a href="javascript:;" class="btn btn-sm btn-primary" ywl-filter="update_demo"><i
+                        class="fa fa-upload fa-fw"></i> 导入模板下载</a>
+            </div>
+
+            <div class="">
+                <div class="input-group input-group-sm" ywl-filter="search" style="display:inline-block;">
+                    <input type="text" class="form-control" placeholder="搜索 分组名称 " style="display:inline-block;">
+                    <span class="input-group-btn" style="display:inline-block;margin-left:-4px;"><button type="button"
+                                                                                                         class="btn btn-default"><i
+                            class="fa fa-search fa-fw"></i></button></span>
+                </div>
+
+            </div>
+        </div>
+        <!-- end filter -->
+
+        <!-- begin table -->
+        <table class="table table-striped table-bordered table-hover table-data no-footer dtr-inline"
+               toc-table="needschedule-list"></table>
+        <!-- end table -->
+
+        <!-- begin page-nav -->
+        <div class="page-nav" ywl-paging="host-list">
+
+            <div class="input-group input-group-sm" style="display:inline-block;">
+                <a href="#" id="btn-add-host" class="btn btn-sm btn-primary"><i class="fa fa-plus-circle fa-fw"></i> 添加</a>
+##                 <a href="#" id="btn-delete-host" class="btn btn-sm btn-success"><i
+##                         class="glyphicon glyphicon-trash"></i> 删除</a>
+            </div>
+
+
+            <div class="" style="float:right;">
+                <nav>
+                    <ul class="pagination pagination-sm"></ul>
+                </nav>
+            </div>
+
+            <div style="float:right;margin-right:30px;">
+                <div class="breadcrumb-container">
+                    <ol class="breadcrumb">
+                        <li><i class="fa fa-list fa-fw"></i> 记录总数 <strong ywl-field="recorder_total">0</strong></li>
+                        <li>页数 <strong><span ywl-field="page_current">1</span>/<span
+                                ywl-field="page_total">1</span></strong></li>
+                        <li>每页显示
+                            <label>
+                                <select></select>
+                            </label>
+                            条记录
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+        </div>
+        <!-- end page-nav -->
+    </div>
+</div>
+
+<%block name="extend_content">
+    <div class="modal fade" id="dialog-needschedule-info" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">编辑schedule信息</h3>
+                </div>
+                <div class="modal-body">
+                    <form enctype="multipart/form-data" id="needschedule-list-action">
+                        <input type="hidden" id="vtype_list_id">
+                        <div class="form-horizontal">
+                            <div class="form-group form-group-sm" id="vtype-div">
+                                <label for="group_name" class="col-sm-3 control-label"><strong>分组名称：</strong></label>
+                                <div class="col-sm-6">
+                                    <select id="group_name">
+                                        <option value="">请选择</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="group">
+                                <div class="form-group form-group-sm" id="vtype-div">
+                                    <label for="package_id" class="col-sm-3 control-label"><strong>投放量：</strong></label>
+                                    <div class="col-sm-6">
+                                        <input class="form-control" id="count" placeholder="设置投放量" type="number"
+                                               min="0">
+                                    </div>
+                                </div>
+
+                                <div class="form-group form-group-sm">
+                                    <label for="vtype_name" class="col-sm-3 control-label"><strong>公式：</strong></label>
+                                    <div class="col-sm-6">
+                                        <input class="form-control" id="anchor_if_exp" placeholder="设置公式">
+                                    </div>
+                                </div>
+
+                                <div class="form-group form-group-sm">
+                                    <label for="vtype_name" class="col-sm-3 control-label"><strong>优先级：</strong></label>
+                                    <div class="col-sm-6">
+                                        <input class="form-control" id="lv_priority" placeholder="设置优先级" type="number"
+                                               min="0">
+                                    </div>
+                                </div>
+
+                                <div class="form-group form-group-sm">
+                                    <label for="vtype_name"
+                                           class="col-sm-3 control-label"><strong>投放时间：</strong></label>
+                                    <div class="col-sm-6">
+                                        <input class="form-control" id="create_time" placeholder="" type="text">
+                                    </div>
+                                </div>
+
+                                <div id="dlg-notice">
+                                    ##                                 <div class="form-group form-group-sm">
+##                                     <div class="col-sm-3"></div>
+##                                     <div class="col-sm-6">
+##                                         注意，广告位复选框需勾选中 <span class="mono h4">下拉选择才有效</span> ！
+##                                     </div>
+##                                 </div>
+                            </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-primary" id="btn-save"><i class="fa fa-check fa-fw"></i>
+                        确定
+                    </button>
+                    <button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i
+                            class="fa fa-close fa-fw"></i> 取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</%block>
+
+
+<div class="modal fade" id="dialog-needscheduleinfo-info" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">导入白名单</h3>
+            </div>
+            <div class="input-group input-group-sm" style="display:inline-block;margin-left: 50px;">
+                <button class="btn btn-sm btn-default" style="line-height: 0.1;">
+                    上传excel表格： <input type="file" name="infile" id="files_ads"
+                                      style="display: inline-block "><br><br>
+
+                </button>
+            </div>
+            <div class="input-group input-group-sm" style="display:inline-block;">
+                <button type="button" class="btn btn-sm btn-default" onclick="excelImportAds()" id="btn01">
+                    <i class="glyphicon glyphicon-search"></i> 导入
+                </button>
+            </div>
+
+            <div class="modal-footer">
+                ## 					<button type="button" class="btn btn-sm btn-primary" id="btn-save"><i class="fa fa-check fa-fw"></i> 确定</button>
+
+                <button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i
+                        class="fa fa-close fa-fw"></i> 取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="modal fade" id="dialog-whiteinfo-info" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document" style="width:80%">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">对应白名单信息</h3>
+            </div>
+            <div class="modal-body">
+                <form enctype="multipart/form-data" id="version-list-action">
+                    <table class="table table-bordered table-hover" id="whiteinfo">
+                        <thead>
+                        <tr>
+                            <th>平台ID</th>
+                            <th>房间号</th>
+                            <th>schedule_id</th>
+                            <th>创建时间</th>
+                            <th>log时间</th>
+                            <th>描述</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i
+                        class="fa fa-close fa-fw"></i> 取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

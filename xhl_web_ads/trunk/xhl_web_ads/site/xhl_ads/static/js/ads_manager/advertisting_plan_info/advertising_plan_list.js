@@ -1,0 +1,424 @@
+var v_dlg = null;
+var icom_dupdate = '';
+var plat_list = '';
+var create_table_filter_shch_list = null;
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#advertisingplanlist-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='advertisingplanlist-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/advertisingplanlist/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: "need_plan_id", key: "need_plan_id", width: 10, fields: {id: 'need_plan_id'}
+            },
+            {title: "task_id", key: "task_id", width: 10},
+
+            {
+                title: "schedule_id", key: "schedule_id", width: 10, render: 'format_ads',
+                fields: {ads_schedule_id_list: 'schedule_id'}
+            },
+
+            {
+                title: "group_id", key: "group_id", width: 10, render: 'format_group',
+                fields: {ads_schedule_id_list: 'group_id'}
+            },
+            {title: "等级level", key: "anchor_level", width: 10},
+            {
+                title: "投放时间", key: "play_time", width: 10, render: 'format_time', sort: true,
+                fields: {logtime: 'play_time'}
+            }, {
+                title: "申请时间", key: "create_time", width: 10, render: 'format_time', sort: true,
+                fields: {logtime: 'create_time'}
+            }, {
+                title: "投放状态", key: "plan_name", width: 10, render: 'format_incomeAll',
+                fields: {anchor_balance: 'plan_name', union_balance: "plan_name"}
+            }, {
+                title: "更新时间", key: "logtime", width: 10, render: 'format_time', sort: true,
+                fields: {logtime: 'logtime'}
+            }
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+    };
+
+    var host_table = ywl.create_table(host_table_options);
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    document.getElementById("date").value = "" + getDate() + "";
+
+    $.get("/advertisingplanlist/scheduleid?level=" + icom_dupdate, function (ret) {
+            plat_list = ret;
+            create_table_filter_shch_list.init();
+        }
+    );
+
+    $("#btn-add-host").click(function () {
+        v_dlg.create_show();
+    });
+
+    $(dom_id + " [ywl-filter='select']").click(function () {
+        host_table.load_data(cb_stack, {},'search')
+
+    });
+    ywl.create_table_filter_incometype_list(host_table, dom_id + " [ywl-filter='plan_status']");
+    ywl.create_table_filter_leveltype_list(host_table, dom_id + " [ywl-filter='level']");
+    create_table_filter_shch_list = ywl.create_table_filter_shch_list(host_table, dom_id + " [ywl-filter='schedule_id']");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='date']", "", "date");
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+
+}
+;
+
+function show_adsInfo(id) {
+    $.get("/needschedule/list_shchedule?id=" + id, function (ret) {
+        if (ret.code === 0) {
+            document.getElementById('schedule_id').innerHTML = ret.data.schedule_id;
+            document.getElementById('group_name').innerHTML = ret.data.group_name;
+            document.getElementById('count').innerHTML = ret.data.count;
+            document.getElementById('anchor_if_exp').innerHTML = ret.data.anchor_if_exp;
+            document.getElementById('lv_priority').innerHTML = ret.data.lv_priority;
+            document.getElementById('logtime').innerHTML = ret.data.logtime;
+
+            $("#dialog-scheduleinfo-info").modal();
+
+        } else if (ret.code === -1) {
+            ywl.notify_error('' + ret.message);
+        }
+
+    })
+}
+
+function show_groupInfo(id) {
+    $.get("/needgroupinfo/list_groupid?id=" + id, function (ret) {
+        if (ret.code === 0) {
+            document.getElementById('ads_need_group_id').innerHTML = ret.data.ads_need_group_id;
+            document.getElementById('group_name').innerHTML = ret.data.group_name;
+            document.getElementById('comment').innerHTML = ret.data.comment;
+            document.getElementById('need_id').innerHTML = ret.data.need_id;
+            document.getElementById('logtime').innerHTML = ret.data.logtime;
+            document.getElementById('anchor_level').innerHTML = ret.data.anchor_level;
+
+
+            $("#dialog-groupinfo-info").modal();
+
+        } else if (ret.code === -1) {
+            ywl.notify_error('' + ret.message);
+        }
+
+    })
+}
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+        render.format_ads = function (row_id, fields) {
+            var temp = []
+            if (fields.ads_schedule_id_list) {
+                var arr = fields.ads_schedule_id_list;
+                temp.push('<a href="javascript:void(0)" onclick="show_adsInfo(' + arr + ')">【' + arr + '】</a>')
+
+            }
+            return temp.join("  ");
+        };
+
+        render.format_group = function (row_id, fields) {
+            var temp = []
+            if (fields.ads_schedule_id_list) {
+                var arr = fields.ads_schedule_id_list;
+                temp.push('<a href="javascript:void(0)" onclick="show_groupInfo(' + arr + ')">【' + arr + '】</a>')
+
+            }
+            return temp.join("  ");
+        };
+
+        render.format_incomeAll = function (row_id, fields) {
+            var temp = '未处理'
+            if (fields.union_balance === '未接') {
+                temp = '<span class="badge badge-danger mono">未接</span>'
+            } else if (fields.union_balance === '完成') {
+                temp = '<span class="badge badge-success mono">完成</span>'
+            } else if (fields.union_balance === '已接') {
+                temp = '<span class="badge badge-primary mono">已接</span>'
+            }
+            return '<label style="color: red">' + temp + '</label>'
+
+        };
+
+        render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T", " ") + ' </span>';
+        };
+    };
+};
+
+ywl.create_table_filter_incometype_list = function (tbl, selector, on_created) {
+    var _tblf_st = {};
+
+    // 此表格绑定的DOM对象的ID，用于JQuery的选择器
+    _tblf_st.selector = selector;
+    // 此过滤器绑定的表格控件
+    _tblf_st._table_ctrl = tbl;
+    _tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+    // 过滤器内容
+    _tblf_st.filter_name = 'plan_status';
+    _tblf_st.filter_default = '';
+    _tblf_st.filter_value = '';
+
+    _tblf_st.get_filter = function () {
+        var _ret = {};
+        _ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+        return _ret;
+    };
+
+    _tblf_st.reset = function (cb_stack, cb_args) {
+        if (_tblf_st.filter_value == _tblf_st.filter_default) {
+            cb_stack.exec();
+            return;
+        }
+
+        cb_stack
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = _tblf_st.filter_default;
+                $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+                cb_stack.exec();
+            });
+    };
+
+    _tblf_st.init = function (cb_stack) {
+        var node = '';
+        var user_list = ywl.page_options.user_list;
+        node += '<li><a href="javascript:;" ywl-income-from="">全部</a></li>';
+        node += '<li role="separator" class="divider"></li>';
+        node += '<li><a href="javascript:;" ywl-income-from="' + 1 + '">未接 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 2 + '">已接 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 5 + '">完成 </a></li>'
+        _tblf_st.filter_value = _tblf_st.filter_default;
+        $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+        $(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('全部');
+
+        // 点击事件绑定
+        $(_tblf_st.selector + ' ul [ywl-income-from]').click(_tblf_st._on_select);
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_st);
+        }
+
+        cb_stack.exec();
+    };
+
+    _tblf_st._on_select = function () {
+        var income_from = $(this).attr("ywl-income-from");
+        var income_from_html = $(this).html();
+        var cb_stack = CALLBACK_STACK.create();
+        cb_stack
+            .add(_tblf_st._table_ctrl.load_data)
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = income_from;
+                $(_tblf_st.selector + ' button span:first').html(income_from_html);
+            });
+        cb_stack.exec();
+    };
+
+    return _tblf_st;
+};
+
+
+ywl.create_table_filter_leveltype_list = function (tbl, selector, on_created) {
+    var _tblf_st = {};
+
+    // 此表格绑定的DOM对象的ID，用于JQuery的选择器
+    _tblf_st.selector = selector;
+    // 此过滤器绑定的表格控件
+    _tblf_st._table_ctrl = tbl;
+    _tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+    // 过滤器内容
+    _tblf_st.filter_name = 'level';
+    _tblf_st.filter_default = '';
+    _tblf_st.filter_value = '';
+
+    _tblf_st.get_filter = function () {
+        var _ret = {};
+        _ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+        return _ret;
+    };
+    _tblf_st.reset = function (cb_stack, cb_args) {
+        if (_tblf_st.filter_value == _tblf_st.filter_default) {
+            cb_stack.exec();
+            return;
+        }
+        cb_stack
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = _tblf_st.filter_default;
+                $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+                // cb_stack.exec();
+            });
+    };
+
+    _tblf_st.init = function (cb_stack) {
+        var node = '';
+        var user_list = ywl.page_options.user_list;
+        node += '<li><a href="javascript:;" ywl-level-from="">全部</a></li>';
+        node += '<li role="separator" class="divider"></li>';
+        // node += '<li><a href="javascript:;" ywl-income-from="' + 0 + '"> 未处理 </a></li>'
+        node += '<li><a href="javascript:;" ywl-level-from="S">S </a></li>'
+        node += '<li><a href="javascript:;" ywl-level-from="A">A </a></li>'
+        node += '<li><a href="javascript:;" ywl-level-from="B">B </a></li>'
+        node += '<li><a href="javascript:;" ywl-level-from="C">C </a></li>'
+        node += '<li><a href="javascript:;" ywl-level-from="D">D </a></li>'
+        _tblf_st.filter_value = _tblf_st.filter_default;
+        $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+        $(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('全部');
+
+        // 点击事件绑定
+        $(_tblf_st.selector + ' ul [ywl-level-from]').click(_tblf_st._on_select);
+        // $(_tblf_st.selector + ' ul [ywl-level-from]').change(_tblf_st._on_change);
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_st);
+        }
+
+        cb_stack.exec();
+    };
+
+    _tblf_st._on_select = function () {
+        var income_from = $(this).attr("ywl-level-from");
+        icom_dupdate = income_from;
+
+        var income_from_html = $(this).html();
+
+        var cb_stack = CALLBACK_STACK.create();
+        cb_stack
+            .add(_tblf_st._table_ctrl.load_data)
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = income_from;
+                $(_tblf_st.selector + ' button span:first').html(income_from_html);
+                // cb_stack.exec();
+            });
+        cb_stack.exec();
+
+        $.get("/advertisingplanlist/scheduleid?level=" + icom_dupdate, function (ret) {
+                plat_list = ret;
+                create_table_filter_shch_list.init();
+            }
+        );
+    };
+    return _tblf_st;
+};
+
+
+ywl.create_table_filter_shch_list = function (tbl, selector, on_created) {
+    var _tblf_st = {};
+
+    // 此表格绑定的DOM对象的ID，用于JQuery的选择器
+    _tblf_st.selector = selector;
+    // 此过滤器绑定的表格控件
+    _tblf_st._table_ctrl = tbl;
+    _tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+    // 过滤器内容
+    _tblf_st.filter_name = 'schedule_id';
+    _tblf_st.filter_default = '';
+    _tblf_st.filter_value = '';
+
+    _tblf_st.get_filter = function () {
+        var _ret = {};
+        _ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+        return _ret;
+    };
+
+
+    _tblf_st.reset = function (cb_stack, cb_args) {
+
+        if (_tblf_st.filter_value == _tblf_st.filter_default) {
+            cb_stack.exec();
+            return;
+        }
+
+        cb_stack
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = _tblf_st.filter_default;
+                $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+                // cb_stack.exec();
+            });
+    };
+
+    _tblf_st.init = function (cb_stack) {
+        var node = '';
+        node += '<li><a href="javascript:;" ywl-plat-id="">全部</a></li>';
+        node += '<li role="separator" class="divider"></li>';
+        if (plat_list === '') {
+            $.each(plat_list, function (i, g) {
+                node += '<li><a href="javascript:;" ywl-plat-id="' + '' + '">' + '' + '</a></li>';
+            });
+        } else {
+            $.each(plat_list, function (i, g) {
+                node += '<li><a href="javascript:;" ywl-plat-id="' + g[0] + '">' + g[1] + '</a></li>';
+            });
+        }
+
+        _tblf_st.filter_value = _tblf_st.filter_default;
+        $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+        $(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('全部');
+
+        // 点击事件绑定
+        $(_tblf_st.selector + ' ul [ywl-plat-id]').click(_tblf_st._on_select);
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_st);
+        }
+
+        cb_stack.exec();
+    };
+
+    _tblf_st._on_select = function () {
+        var plat_id_html = $(this).html();
+        var plat_id = $(this).attr("ywl-plat-id");
+        var cb_stack = CALLBACK_STACK.create();
+        cb_stack
+            .add(_tblf_st._table_ctrl.load_data)
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = plat_id;
+                $(_tblf_st.selector + ' button span:first').html(plat_id_html);
+            });
+        cb_stack.exec();
+    };
+
+    return _tblf_st;
+};

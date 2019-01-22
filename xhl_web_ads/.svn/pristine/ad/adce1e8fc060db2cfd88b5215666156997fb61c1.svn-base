@@ -1,0 +1,444 @@
+var v_dlg=null
+var host_table=null
+
+function getcheckDetail(row_data,type) {
+    $.get("/income/check/detail?check_id=" + row_data.check_id+"&type="+type, function (ret) {
+        if (ret.code === 0) {
+            $("#checkdetail tbody").html("");
+            for (var i = 0; i < ret.data.length; i++) {
+                $("#checkdetail").append("<tr>" +
+                    "<td>" + ret.data[i].detail_id + "</td>" +
+                    "<td>" + ret.data[i].user_id + "</td>" +
+                    "<td>" + ret.data[i].check_id + "</td>" +
+                    "<td>" + ret.data[i].user_type + "</td>" +
+                    "<td>" + ret.data[i].agent_id + "</td>" +
+                    "<td>" + ret.data[i].union_id + "</td>" +
+                    "<td>" + ret.data[i].balance + "</td>" +
+                    "<td>" + ret.data[i].income + "</td>" +
+                    "<td>" + ret.data[i].withdraw + "</td>" +
+                    "<tr>")
+            }
+
+            $("#dialog-checkdetail-info").modal();
+
+        } else {
+            ywl.notify_error('查看详情失败');
+        }
+    })
+}
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#cloud-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='cloud-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/income/check/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {title: "check_id", key: "check_id",width: 30},
+            {title: "对账日期", key: "check_date",width: 30},
+            {title: "账户数量", key: "account_num",width: 50},
+            {title: "提现账户数量", key: "withdraw_num",width: 10},
+            {title: "结算账户数量", key: "income_log_num",width: 10},
+            {title: "备份文件", key: "backup_file",width: 50},
+            {title: "对账人", key: "check_user",width: 50},
+            {title: "对账结果", key: "check_result",width: 50,render: 'format_result',
+                fields: {check_result: 'check_result'}},
+            {title: "结账时间", key: "last_check_time",width: 50,render: 'format_time',fields: {logtime: 'last_check_time'}},
+            {title: "日志时间", key: "log_time",width: 50,render: 'format_time',
+                fields: {logtime: 'log_time'}},
+             {
+                title: "操作",
+                key: "action",
+                width: 200,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'check_id', check_date: 'check_date'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+    // $("#createtime").val(getDate())
+
+    host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='search']","",'search');
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='createtime']",'','createtime');
+    ywl.create_table_filter_verifyr_list(host_table, dom_id + " [ywl-filter='verify_result']");
+    ywl.create_table_filter_verifyf_list(host_table, dom_id + " [ywl-filter='cloud_from']");
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        } else if (col_key === "action") {
+            var row_data = tbl.get_row(row_id);
+            $(cell_obj).find('[ywl-btn-checkall]').click(function () {
+                var that = $(this);
+                var t = null  //定时对象
+                var playnum = null  //task编号
+                $.get("/income/check/create", function (ret) {
+                        $("#dialog-auto-info").modal()
+                        playnum = ret.data
+                        //step-2  定时获取文件上传进
+                        t = setInterval(function () {
+                            $.get("/income/check/select", {playnum: playnum}, function (ret) {
+                                    if (ret.code === TPE_OK) {
+                                        $('#process_data1').attr({value: ret.data["now"], max: ret.data["max"]}); //更新数据到进度条
+                                        $('#progress1').html(ret.data["now"] + "/" + ret.data["max"] + "     ");
+
+                                    } else {
+                                        ywl.notify_error('获取进度信息失败：' + ret.message);
+                                    }
+                                }
+                            );
+                        }, 200);
+
+                        that.attr("disbaled", 'disabled');
+                        // var date = row_data.auto_date
+                        // var id = row_data.auto_id
+                        var form = {'check_id': row_data.check_id, 'playnum': playnum}
+                        $.ajax({
+                            type: 'POST',
+                            url: '/income/check/all',
+                            data: form,
+                            dataType: "json",
+                            success: function (ret) {
+                                clearInterval(t);    //删除定时请求
+
+                                $("#dialog-auto-info").modal('hide')
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                if (ret.code === TPE_OK) {
+                                    host_table.reload();
+                                }
+                                else {
+                                    ywl.notify_error('对账结束：' + ret.message);
+                                }
+                            },
+                            error: function (xhr, errorText, errorStatus) {
+                                clearInterval(t);    //删除定时请求
+                                $("#dialog-auto-info").modal('hide')
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                ywl.notify_error('网络故障，对账未完成！');
+                            }
+                        })
+                    }
+                );
+            });
+            $(cell_obj).find('[ywl-btn-checkincre]').click(function () {
+
+                var that = $(this);
+                var t = null  //定时对象
+                var playnum = null  //task编号
+                $.get("/income/check/create", function (ret) {
+                        $("#dialog-auto-info").modal()
+                        playnum = ret.data
+                        //step-2  定时获取文件上传进
+                        t = setInterval(function () {
+                            $.get("/income/check/select", {playnum: playnum}, function (ret) {
+                                    if (ret.code === TPE_OK) {
+                                        $('#process_data1').attr({value: ret.data["now"], max: ret.data["max"]}); //更新数据到进度条
+                                        $('#progress1').html(ret.data["now"] + "/" + ret.data["max"] + "     ");
+
+                                    } else {
+                                        ywl.notify_error('获取进度信息失败：' + ret.message);
+                                    }
+                                }
+                            );
+                        }, 200);
+
+                        that.attr("disbaled", 'disabled');
+                        // var date = row_data.auto_date
+                        // var id = row_data.auto_id
+                        var form = {'check_id': row_data.check_id, 'playnum': playnum}
+                        $.ajax({
+                            type: 'POST',
+                            url: '/income/check/incre',
+                            data: form,
+                            dataType: "json",
+                            success: function (ret) {
+                                clearInterval(t);    //删除定时请求
+
+                                $("#dialog-auto-info").modal('hide')
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                if (ret.code === TPE_OK) {
+                                    host_table.reload();
+                                }
+                                else {
+                                    ywl.notify_error('对账结束：' + ret.message);
+                                }
+                            },
+                            error: function (xhr, errorText, errorStatus) {
+                                clearInterval(t);    //删除定时请求
+                                $("#dialog-auto-info").modal('hide')
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                ywl.notify_error('网络故障，对账未完成！');
+                            }
+                        })
+                    }
+                );
+            });
+            $(cell_obj).find('[ywl-btn-checkdetail]').click(function () {
+                 getcheckDetail(row_data,1)
+            });
+            $(cell_obj).find('[ywl-btn-checkinrdetail]').click(function () {
+                 getcheckDetail(row_data,2)
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            var flag = fields.check_date==getDate()
+            if (flag) {
+                ret.push('<a href="javascript:;" class="btn btn-sm btn-danger" protocol=' + fields.protocol + ' ywl-btn-checkall="' + fields.ID + '">全局对账</a>&nbsp');
+            }
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-checkdetail="' + fields.ID + '">全局详情</a>&nbsp');
+            if (flag) {
+                ret.push('<a href="javascript:;" class="btn btn-sm btn-danger" protocol=' + fields.protocol + ' ywl-btn-checkincre="' + fields.ID + '">增量对账</a>&nbsp');
+            }
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-checkinrdetail="' + fields.ID + '">增量详情</a>&nbsp');
+            return ret.join('');
+        }
+         render.format_time = function (row_id, fields) {
+            if(fields.logtime){
+               return '<span class="badge badge-primary mono">' + fields.logtime.replace("T"," ") + ' </span>';
+            }else {
+                return ''
+            }
+
+        };
+        render.format_result = function (row_id, fields) {
+            var temp=''
+
+                if(fields.check_result==0){
+                    temp='<span class="badge badge-danger mono">'+ '账目有误'+' </span>';
+                }else if(fields.check_result==1){
+                    temp='<span class="badge badge-success mono">'+ '账目准确'+' </span>';
+                }
+                return temp
+
+        };
+
+
+    };
+};
+
+
+
+ywl.create_table_filter_verifyr_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'verify_result';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		// _ret["package_id"] = $("#package_id").val();
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-verifyr-from="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+        node+='<li><a href="javascript:;" ywl-verifyr-from="' + -1+ '"> 初始状态 </a></li>'
+		node+='<li><a href="javascript:;" ywl-verifyr-from="' + 0+ '"> 成功 </a></li>'
+		node+='<li><a href="javascript:;" ywl-verifyr-from="' + 1+ '"> 失败 </a></li>'
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('全部');
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-verifyr-from]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var verifyr = $(this).attr("ywl-verifyr-from");
+		var verifyr_html = $(this).html();
+        play_verify_result=verifyr
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = verifyr;
+				$(_tblf_st.selector + ' button span:first').html(verifyr_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+ywl.create_table_filter_verifyf_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'cloud_from';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		// _ret["package_id"] = $("#package_id").val();
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-verifyr-from="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		node+='<li><a href="javascript:;" ywl-verifyr-from="' + 1+ '"> 客户端 </a></li>'
+		node+='<li><a href="javascript:;" ywl-verifyr-from="' + 2+ '"> 服务器 </a></li>'
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('全部');
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-verifyr-from]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var verifyr = $(this).attr("ywl-verifyr-from");
+		var verifyr_html = $(this).html();
+        play_verify_result=verifyr
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = verifyr;
+				$(_tblf_st.selector + ' button span:first').html(verifyr_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};

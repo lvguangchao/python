@@ -1,0 +1,333 @@
+<%!
+    page_title_ = 'schedule添加'
+    page_menu_ = ['ads', 'needschedule']
+    page_id_ = 'needschedule'
+%>
+
+## <%inherit file="../../page_base.mako"/>
+<%block name="extend_js">
+    <link rel="shortcut icon" href="${ static_url('favicon.png') }">
+    <link href="${ static_url('plugins/google-cache/open-sans.css') }" rel="stylesheet">
+    <link href="${ static_url('plugins/bootstrap/css/bootstrap.min.css') }" rel="stylesheet" type="text/css"/>
+    <link href="${ static_url('plugins/font-awesome/css/font-awesome.min.css') }" rel="stylesheet">
+    <link href="${ static_url('plugins/gritter/css/jquery.gritter.css') }" rel="stylesheet">
+    <link href="${ static_url('css/main.css') }" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript" src="${ static_url('plugins/underscore/underscore.js') }"></script>
+    <script type="text/javascript" src="${ static_url('plugins/jquery/jquery.min.js') }"></script>
+    <script type="text/javascript" src="${ static_url('plugins/jquery/ajaxfileupload.js') }"></script>
+    <script type="text/javascript" src="${ static_url('plugins/bootstrap/js/bootstrap.min.js') }"></script>
+    <!--[if lt IE 9]>
+    <script src="${ static_url('plugins/html5shiv/html5shiv.min.js') }"></script>
+    <![endif]-->
+    <script type="text/javascript" src="${ static_url('js/json2.js') }"></script>
+    <script type="text/javascript" src="${ static_url('plugins/gritter/js/jquery.gritter.js') }"></script>
+    <script type="text/javascript" src="${ static_url('js/toc_const.js') }"></script>
+    <script type="text/javascript" src="${ static_url('js/toc_common.js') }"></script>
+    <script type="text/javascript" src="${ static_url('js/toc.js') }"></script>
+    <script type="text/javascript" src="${ static_url('js/ui/common.js') }"></script>
+    <script type="text/javascript" src="${ static_url('js/ui/controls.js') }"></script>
+    <script type="text/javascript" src="${ static_url('plugins/laydate/laydate.js') }"></script>
+    <script type="text/javascript" src="${ static_url('js/ads_manager/need_schedule/need_schedule_add.js') }"></script>
+    <link href="${ static_url('css/style.css') }" rel="stylesheet">
+</%block>
+<%block name="breadcrumb">
+    <ol class="breadcrumb">
+        <li><i class="fa fa-server fa-fw"></i> ${self.attr.page_title_}</li>
+    </ol>
+</%block>
+
+<div class="page-content">
+    <div class="box" id="needschedule-create">
+        <!-- begin filter -->
+        <div class="page-filter">
+            <div class="" style="float:right;">
+##                 <a href="javascript:void (0);" onclick="javascript:history.back(-1);" class="btn btn-sm btn-primary" ywl-filter="reload"><i class="fa fa-repeat fa-fw"></i> 返回</a>
+            </div>
+        </div>
+        <div class="modal-body">
+                    <form enctype="multipart/form-data" id="needschedule-list-action">
+                        <input type="hidden" id="vtype_list_id">
+                        <div class="form-horizontal">
+                              <div class="form-group form-group-sm">
+                                  <div class="col-sm-12">
+
+                                     <table class="table table-bordered">
+                                         <th>
+                                            <td>是否添加</td>
+                                            <td>组名</td>
+                                            <td>投放量</td>
+                                            <td>公式</td>
+                                            <td>优先级</td>
+                                            <td>投放时间</td>
+                                         </th>
+                                         <tr>
+                                             <td>S</td>
+                                             <td><input type="checkbox" name="anchor_levelS"></td>
+                                             <td><div style=" display: flex;flex-direction: column;justify-content: space-between;align-items: center;">
+                                                 <select onchange="selectGroup(this)" id="group_nameS" style="width: 120px">
+                                             </select>
+                                                 <label>
+                                                 </label>
+                                                 </div>
+                                             </td>
+                                             <td><input type="number" id="countS" value="10" min="0"></td>
+                                             <td><input type="text" id="anchor_if_expS" value="level>5"></td>
+                                             <td><input type="number" id="lv_priorityS" value="5" min="0"></td>
+                                             <td><input type="text" id="create_timeS" value=""></td>
+
+                                         </tr> <tr>
+                                             <td>A</td>
+                                            <td><input type="checkbox" name="anchor_levelA"></td>
+                                             <td><div style=" display: flex;flex-direction: column;justify-content: space-between;align-items: center;">
+                                                 <select onchange="selectGroup(this)" id="group_nameA" style="width: 120px">
+                                             </select>
+                                                 <label>
+                                                 </label>
+                                             </div>
+                                             </td>
+                                             <td><input type="number" id="countA" value="10" min="0"></td>
+                                             <td><input type="text" id="anchor_if_expA" value="level>4"></td>
+                                             <td><input type="number" id="lv_priorityA" value="4" min="0"></td>
+                                            <td><input type="text" id="create_timeA"></td>
+
+
+                                         </tr> <tr>
+                                             <td>B</td>
+                                            <td><input type="checkbox" name="anchor_levelB"></td>
+                                             <td><div style=" display: flex;flex-direction: column;justify-content: space-between;align-items: center;">
+                                                 <select onchange="selectGroup(this)" id="group_nameB" style="width: 120px">
+                                             </select>
+                                                 <label>
+                                                 </label></div>
+                                             </td>
+                                             <td><input type="number" id="countB" value="10" min="0"></td>
+                                             <td><input type="text" id="anchor_if_expB" value="level>3"></td>
+                                             <td><input type="number" id="lv_priorityB" value="3" min="0"></td>
+                                             <td><input type="text" id="create_timeB"></td>
+
+                                         </tr> <tr>
+                                             <td>C</td>
+                                            <td><input type="checkbox" name="anchor_levelC"></td>
+                                             <td><div style=" display: flex;flex-direction: column;justify-content: space-between;align-items: center;">
+                                                 <select onchange="selectGroup(this)" id="group_nameC" style="width: 120px">
+                                             </select>
+                                                 <label>
+                                                 </label>
+                                             </div>
+                                             </td>
+                                             <td><input type="number" id="countC" value="10" min="0"></td>
+                                             <td><input type="text" id="anchor_if_expC" value="level>2"></td>
+                                             <td><input type="number" id="lv_priorityC" value="2" min="0"></td>
+                                             <td><input type="text" id="create_timeC"></td>
+
+                                         </tr> <tr>
+                                             <td>D</td>
+                                            <td><input type="checkbox" name="anchor_levelD"></td>
+                                             <td><div style=" display: flex;flex-direction: column;justify-content: space-between;align-items: center;">
+                                                 <select onchange="selectGroup(this)" id="group_nameD" style="width: 120px">
+                                             </select>
+                                                 <label>
+                                                 </label>
+                                             </div>
+                                             </td>
+                                             <td><input type="number" id="countD" value="10" min="0"></td>
+                                             <td><input type="text" id="anchor_if_expD" value="level>1"></td>
+                                             <td><input type="number" id="lv_priorityD" value="1" min="0"></td>
+                                             <td><input type="text" id="create_timeD"></td>
+                                         </tr>
+                                         <tr>
+                                             <td>定制1</td>
+                                            <td><input type="checkbox" name="anchor_level1"></td>
+                                             <td><div style=" display: flex;flex-direction: column;justify-content: space-between;align-items: center;">
+                                                 <select onchange="selectGroup(this)" id="group_name1" style="width: 120px">
+                                             </select>
+                                                 <label>
+                                                 </label>
+                                             </div>
+                                             </td>
+                                             <td><input type="number" id="count1" value="10" min="0"></td>
+                                             <td><input type="text" id="anchor_if_exp1" value="level>100"></td>
+                                             <td><input type="number" id="lv_priority1" value="16" min="0"></td>
+                                             <td><input type="text" id="create_time1"></td>
+                                         </tr>
+                                         <tr>
+                                             <td>定制2</td>
+                                            <td><input type="checkbox" name="anchor_level2"></td>
+                                             <td><div style=" display: flex;flex-direction: column;justify-content: space-between;align-items: center;">
+                                                 <select onchange="selectGroup(this)" id="group_name2" style="width: 120px">
+                                             </select>
+                                                 <label>
+                                                 </label>
+                                             </div>
+                                             </td>
+                                             <td><input type="number" id="count2" value="10" min="0"></td>
+                                             <td><input type="text" id="anchor_if_exp2" value="level>100"></td>
+                                             <td><input type="number" id="lv_priority2" value="15" min="0"></td>
+                                             <td><input type="text" id="create_time2"></td>
+                                         </tr>
+                                     </table>
+                                  </div>
+                            </div>
+                                </div>
+                                    <div class="" style="float:right;">
+                                           <a href="javascript:void (0);" onclick="createschedule();" class="btn btn-sm btn-primary" ywl-filter="reload"><i class="fa fa-repeat fa-fw"></i> 创建</a>
+                                    </div>
+                    </form>
+				</div>
+    </div>
+</div>
+
+<%block name="extend_content">
+	<div class="modal fade" id="dialog-needinfo-info" tabindex="-1" role="dialog">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title">need_info信息</h3>
+				</div>
+                <div class="modal-body">
+                    <form enctype="multipart/form-data" id="needschedule-list-action">
+                        <input type="hidden" id="vtype_list_id">
+                        <div class="form-horizontal">
+                            <div class="form-group form-group-sm" id="vtype-div">
+                                <label for="group_name" class="col-sm-3 control-label"><strong>需求名称：</strong></label>
+                                <div class="col-sm-6">
+                                    <input id="need_name" type="text" class="form-control" readonly url="sss"/>
+                                </div>
+                            </div>
+
+                            <div class="form-group form-group-sm" id="vtype-div">
+                                <label for="package_id" class="col-sm-3 control-label"><strong>套餐名称：</strong></label>
+                                <div class="col-sm-6">
+                                <input id="package_name" type="text" class="form-control" readonly/>
+                                </div>
+                            </div>
+                            <div class="form-group form-group-sm">
+                                <label for="anchor_alloc_type" class="col-sm-3 control-label"><strong>播放类型：</strong></label>
+                                <div class="col-sm-6">
+                                    <input id="need_play_type" class="form-control" value="1" readonly/>
+                                </div>
+                            </div>
+
+                            <div class="form-group form-group-sm">
+                                <label for="enable" class="col-sm-3 control-label"><strong>是否启用：</strong></label>
+                                <div class="col-sm-6">
+                                    <input name="enable" type="radio" value="1" disabled/>Yes
+                                    <input name="enable" type="radio" value="0" disabled/>No
+                                </div>
+                            </div>
+
+                            <div class="form-group form-group-sm">
+                                <label for="comment" class="col-sm-3 control-label"><strong>描述：</strong></label>
+                                <div class="col-sm-6">
+                                    <textarea id="comment" style="height: 100px;width: 290px" type="text"
+                                              maxlength="200" class="form-control" readonly></textarea>
+                                </div>
+                            </div>
+                            <div id="dlg-notice">
+##                                 <div class="form-group form-group-sm">
+##                                     <div class="col-sm-3"></div>
+##                                     <div class="col-sm-6">
+##                                         注意，广告位复选框需勾选中 <span class="mono h4">下拉选择才有效</span> ！
+##                                     </div>
+##                                 </div>
+                            </div>
+                        </div>
+                    </form>
+				</div>
+
+				<div class="modal-footer">
+					<button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i class="fa fa-close fa-fw"></i> 取消</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+</%block>
+
+<div class="modal fade" id="dialog-adsinfo-info" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title">广告素材信息</h3>
+				</div>
+                <div class="modal-body">
+                    <form enctype="multipart/form-data" id="version-list-action">
+                        <input type="hidden" id="ptype_id">
+                        <div class="form-horizontal">
+                            <div class="form-group form-group-sm" id="vtype-div">
+                                <label for="ads_name" class="col-sm-3 control-label"><strong>素材名称：</strong></label>
+                                <div class="col-sm-6">
+                                    <input id="ads_name" type="text" maxlength="20" class="form-control" readonly/>
+                                </div>
+                            </div>
+
+                            <div class="form-group form-group-sm" id="vtype-div">
+                                <label for="ads_time" class="col-sm-3 control-label"><strong>广告视频时长：</strong></label>
+                                <div class="col-sm-6">
+                                    <input id="ads_time" type="number" type="number" readonly class="form-control"/>
+                                </div>
+                            </div>
+
+                            <div class="form-group form-group-sm">
+                                <label for="ads_materialurl" class="col-sm-3 control-label"><strong>视频：</strong></label>
+                                <div class="col-sm-6">
+                                    <div class="input-group">
+                                        <input  id="ads_materialurl" type="text" readonly class="form-control">
+                                        <span class="input-group-btn"><a class="btn btn-default" href="" id="downMovieBt"
+                                         target="_blank">下载</a></span>
+                                    </div><!-- /input-group -->
+                                </div><!-- /.col-lg-6onClick="downloadMovie(this)" -->
+
+                            </div>
+                            <div class="form-group form-group-sm">
+                                <label for="ads_thumbnailurl" class="col-sm-3 control-label"><strong>图片：</strong></label>
+                                <div class="col-sm-6">
+                                    <img id="ads_thumbnailurl" style="width: 50%;height: 50%;" class="form-control"/>
+                                </div>
+                            </div>
+
+                            <div class="form-group form-group-sm">
+                                <label for="ads_contents" class="col-sm-3 control-label"><strong>描述：</strong></label>
+                                <div class="col-sm-6">
+                                    <textarea id="ads_contents" style="height: 100px;width: 290px" type="text" readonly class="form-control"></textarea>
+                                </div>
+                            </div>
+                            <div id="dlg-notice">
+##                                 <div class="form-group form-group-sm">
+##                                     <div class="col-sm-3"></div>
+##                                     <div class="col-sm-6">
+##                                         注意，新建类型编号 <span class="mono h4">不可重复</span> ！
+##                                     </div>
+##                                 </div>
+                            </div>
+                        </div>
+                    </form>
+				</div>
+
+				<div class="modal-footer">
+					<button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i class="fa fa-close fa-fw"></i> 取消</button>
+				</div>
+			</div>
+		</div>
+	</div>
+<script type="text/javascript">
+    var date=GetDateStr(1)+" 00:01:00"
+
+    $("#create_timeS").val(date)
+    $("#create_timeA").val(date)
+    $("#create_timeB").val(date)
+    $("#create_timeC").val(date)
+    $("#create_timeD").val(date)
+    $("#create_time1").val(date)
+    $("#create_time2").val(date)
+
+</script>
+
+
+
+
+
+
+
+
+

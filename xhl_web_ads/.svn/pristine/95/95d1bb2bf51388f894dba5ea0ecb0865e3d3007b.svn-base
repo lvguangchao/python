@@ -1,0 +1,646 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+"""
+@author: lvguangchao
+@email: guangchao.lv@qq.com
+@file: balance.py
+@time: 2017/12/18 11:27
+"""
+from eom_common.eomcore.logger import *
+from .base import SwxJsonHandler
+from decimal import *
+import xlrd
+from eom_app.orm.tables import AdsInfo, ContractPackInfo, NeedInfo, NeedGroupInfo, AdsContractInfo, \
+    GroupNeedMap, NeedSchedule, AdsConfigAnchorWhitelist, AdsConfigAnchorBlacklist, \
+    NeedSchedule, TLogWithdrawAnchor, Paltform, BaseUser, AdsNeedPlanInfo, \
+    TIdentityPersonal, TaskPlayLog, AdsNeedPlanInfo, AdsOpLog, AdsTask, PlayLogAuto, \
+    Adresult, PackageNeedMap, PackageInfo, BasePlatformsGuild, DashboardTask, TAccountAnchor, BaseRoom, BaseUnion, \
+    AgentInfo, TLogIncomeAnchor, AdmIncomeCheck, AdmIncomeCheckDetail
+
+import re
+from .helper import randomCode
+from sqlalchemy import func, or_, and_, distinct, case, desc
+import json, os, base64, datetime, tornado, random, time, zipfile
+from  eom_app.orm.JSONEncoder import AlchemyEncoder
+from eom_common.eomcore.logger import log
+from eom_app.controller.helper.uploadManager import app_upManager
+from eom_app.app.configs import app_cfg
+from eom_app.controller.helper.identity import app_map
+from eom_app.controller.export import export, exportIncome, exportPlayRecord
+from xlrd import xldate_as_tuple
+from urllib import request
+from eom_app.controller.helper.ExcelImportManager import getplaylogDict, getplaylogAutoDict, getplaylogExport, \
+    getPlatDataSyn,getCheckAccount
+from urllib.parse import urljoin
+
+cfg = app_cfg()
+from decimal import *
+from tornado.concurrent import run_on_executor
+
+app_upManager = app_upManager()
+
+app_playlog = getplaylogDict()
+app_playlogAuto = getplaylogAutoDict()
+app_playlogExport = getplaylogExport()
+app_PlatDataSyn = getPlatDataSyn()
+app_checkAccount = getCheckAccount()
+
+
+# 同步平台结算数据 到120.92.208.113
+class PlatBalanceDataSynHander(SwxJsonHandler):
+    @tornado.gen.coroutine
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        date = self.get_argument('date', None)
+        id = self.get_argument('id', None)
+        playnum = self.get_argument('playnum', None)
+        username = self.current_user["name"]
+
+        # if args:
+        #     args=json.loads(args)
+        # date=args['date']
+
+        yield self.synDate(date, id, username, playnum)
+
+        self.db_plat.close()
+        self.db_ads.close()
+        self.db_wealth.close()
+        self.write_json(0)
+
+    @run_on_executor
+    def synDate(self, date, id, username, playnum):
+        sql = 'SELECT a.play_id,a.task_id,a.need_id,a.postion_id,a.ads_id,' \
+              'a.user_id,a.STATUS,a.popularity_from,' \
+              'a.popularity,a.record_path,a.screen_shot_path,' \
+              'a.record_code,a.verify_status,a.verify_result,' \
+              'a.begin_time,a.end_time,a.create_time,a.logtime,a.log_create_time,' \
+              'a.close_account,b.room_id,b.plat_id,b.agent_id,a.is_count_money FROM ads_task_play_log as a ' \
+              'LEFT JOIN ads_task as b ON a.task_id = b.task_id WHERE  ' \
+              'a.create_time=\'{}\'  and verify_status = 1 and a.close_account= 1'.format(date)
+        results = self.db_ads.execute(sql).fetchall()
+
+        # now = app_PlatDataSyn[int(playnum)]["now"] + 1
+        # max = app_PlatDataSyn[int(playnum)]["max"]
+        app_PlatDataSyn[int(playnum)] = {"now": 0, "max": len(results)}
+
+        ##查询财富库数据，如果有，以财富库数据为准
+        sql_income = 'select play_id,task_id,need_id,income,income_from,income_log_id,' \
+                     'ads_union_group_id,union_id,room_id,plat_id from T_log_income_anchor'
+        results_income = self.db_wealth.execute(sql_income).fetchall()
+        play_dict = dict()
+        for i in results_income:
+            # play_id, task_id, need_id, income, income_from, income_log_id, ads_union_group_id, union_id, room_id, plat_id = i
+            play_dict[i[0]] = i
+
+        ##查询出needinfo字典
+        needInfo_dict = dict()
+        sql_need = 'select need_id ,anchor_level, package_id from ads_need_info'
+        ret = self.db_ads.execute(sql_need)
+        for i in ret:
+            need_id, anchor_level, package_id = i
+            needInfo_dict[need_id] = package_id, anchor_level
+
+        # 删除当天的数据
+        sql_delete = 'delete from stat_play_detail WHERE task_create_time=\'{}\''.format(date)
+        self.db_plat.execute(sql_delete)
+        # 重新插入
+        for ret in results:
+            ##更新进度信息
+            now = app_PlatDataSyn[int(playnum)]["now"] + 1
+            app_PlatDataSyn[int(playnum)]["now"] = now
+
+            play_id, task_id, need_id, postion_id, ads_id, \
+            user_id, status, popularity_from, \
+            popularity, record_path, screen_shot_path, \
+            record_code, verify_status, verify_result, \
+            begin_time, end_time, create_time, logtime, log_create_time, \
+            close_account, room_id, plat_id, agent_id,is_count_money = ret
+
+            record_path = record_path if record_path else ''
+            screen_shot_path = screen_shot_path if screen_shot_path else ''
+            anchor_name = ''
+            room_url = ''
+            anchor_level = ''
+            new_level = ''
+            room = app_map().getRoomInfoById(room_id)
+            if room:
+                anchor_name = room['emcee']
+                room_url = room['source_link']
+                anchor_level = room['ad_level']
+                new_level = room['new_level']
+
+            popularity_from = popularity_from if popularity_from else 1
+            popularity = popularity if popularity else 0
+            if not plat_id:
+                continue
+                log.e('play_id：{} 对应plat_id 是空'.format(play_id))
+
+            income = 0
+            income_from = 0
+            income_log_id = 0
+            ads_union_group_id = 0
+            union_id = 0
+
+            if play_id in play_dict:
+                incomeInfo = play_dict[play_id]
+                income = incomeInfo[3]
+                income_from = incomeInfo[4]
+                income_log_id = incomeInfo[5]
+                ads_union_group_id = incomeInfo[6]
+                union_id = incomeInfo[7]
+
+            if need_id not in needInfo_dict:
+                log.e("can not find the need_id:{}\n".format(need_id))
+                continue
+            package_id, need_level = needInfo_dict[need_id]
+
+            sql_str = "INSERT INTO stat_play_detail (play_id, package_id, task_id,plat_id,room_id,room_url,anchor_name," \
+                      "need_plan_id, need_id, postion_id, ads_id, user_id," \
+                      "status,popularity_from,popularity,income,income_log_id,ads_union_group_id,union_id,record_path, " \
+                      "screen_shot_path,record_code, verify_status,verify_result," \
+                      "task_create_time,begin_time,end_time,need_level,anchor_level,new_level, agent_id,is_count_money) " \
+                      "VALUES ({},{},{},{},\'{}\',\'{}\',\"{}\"," \
+                      "{},\'{}\',\'{}\',\'{}\',{}," \
+                      "\'{}\',\'{}\',\'{}\',{},{},{},{},\'{}\'," \
+                      "\'{}\',{},{},{}," \
+                      "\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\', {},{})".format(play_id, package_id, task_id, plat_id,
+                                                                              room_id, room_url, anchor_name,
+                                                                              0, need_id, postion_id, ads_id, user_id,
+                                                                              status, popularity_from, popularity,
+                                                                              income, income_log_id, ads_union_group_id,
+                                                                              union_id, record_path,
+                                                                              screen_shot_path, record_code,
+                                                                              verify_status, verify_result,
+                                                                              create_time, begin_time, end_time,
+                                                                              need_level, anchor_level, new_level,
+                                                                              agent_id,is_count_money)
+            self.db_plat.execute(sql_str)
+
+        self.db_ads.query(PlayLogAuto).filter(PlayLogAuto.auto_id == id).update({
+            PlayLogAuto.syn_datetime: datetime.datetime.now(),
+            PlayLogAuto.syn_user: username
+        })
+
+        ##添加日志
+        oplog = AdsOpLog()
+        oplog.op_type = 8
+        user = self.get_current_user()
+        oplog.op_user_id = user["id"]
+        oplog.op_user_name = user["name"]
+        oplog.op_desc = '数据同步 日期:' + str(date)
+        oc = {"atuo_id": id, "date": date, "data_num": len(results)}
+        oplog.op_content = str(oc)
+        oplog.createtime = datetime.datetime.now()
+        self.db_ads.add(oplog)
+
+        try:
+            self.db_plat.commit()
+            self.db_ads.commit()
+        except Exception as e:
+            log.e(play_id)
+            self.db_plat.rollback()
+            self.db_ads.rollback()
+        finally:
+            self.db_plat.close()
+            self.db_ads.close()
+
+        log.w('日期:{} 数据同步成功\n'.format(date))
+
+
+class PlatDataSynSelectHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self):
+        playnum = self.get_argument("playnum", None)
+        if playnum is None:
+            self.write_json(-1, 'playlog进度序列号不能为空')
+            return
+        if int(playnum) not in app_PlatDataSyn:
+            app_PlatDataSyn[int(playnum)] = {"now": 0, "max": 0}
+        self.write_json(0, '', app_PlatDataSyn[int(playnum)])
+
+
+class PlatDataSynCreateHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        date_now = int(time.time())
+        app_PlatDataSyn[date_now] = {"now": 0, "max": 0}
+        self.write_json(0, '', date_now)
+
+
+class CheckAccountHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        yield self.check_income()
+
+    @run_on_executor
+    def check_income(self):
+        try:
+            check_id = self.get_argument('check_id', None)
+            playnum = self.get_argument('playnum', None)
+            # type = self.get_argument('type', None)
+            # 结算
+            sql_income_log = 'SELECT user_id,agent_id,union_id,income_type,sum(income)' \
+                             ' from T_log_income_anchor GROUP BY user_id,agent_id,union_id,income_type'
+            income_log_result = self.db_wealth.execute(sql_income_log).fetchall()
+            income_log_dict = {str(p[0]) + '_' + str(p[1]) + '_' + str(p[2]): p for p in income_log_result}
+
+            sql_income_log2 = 'SELECT agent_id,union_id,income_type,sum(income) from' \
+                              ' T_log_income_anchor GROUP BY agent_id,union_id,income_type'
+            income_log_result2 = self.db_wealth.execute(sql_income_log2).fetchall()
+            income_log_dict2 = {str(p[0]) + '_' + str(p[1]) + '_' + str(p[2]): p for p in income_log_result2}
+
+            # 提现
+            sql_income_withdraw = 'SELECT user_id, sum(money+sevice_money-money_rp) ' \
+                                  ' log_income from T_log_withdraw_anchor GROUP BY user_id'
+            withdraw_log_result = self.db_wealth.execute(sql_income_withdraw).fetchall()
+            withdraw_log_dict = {p[0]: p[1] for p in withdraw_log_result}
+
+            # 账户余额
+            sql_account_log = 'SELECT user_id,agent_id,union_id,user_type ,sum(balance) ' \
+                              ' from T_account_anchor  GROUP BY agent_id,union_id,user_type,user_id;'
+            account_log_result = self.db_wealth.execute(sql_account_log).fetchall()
+
+            account_num = len(account_log_result)
+            income_log_num = len(income_log_result) + len(income_log_result2)
+            withdraw_num = len(withdraw_log_result)
+
+            lst = list()
+            head = ['user_id', 'agent_id', 'union_id', 'user_type', 'balance_income',
+                    'account_income', 'withdraw_income']
+            for acc in account_log_result:
+                # 　更新进度信息
+                now = app_checkAccount[int(playnum)]["now"] + 1
+                max = len(account_log_result)
+                app_checkAccount[int(playnum)] = {"now": now, "max": max}
+
+                user_id, agent_id, union_id, user_type, balance = acc
+                key = str(user_id) + '_' + str(agent_id) + '_' + str(union_id)
+                if user_type == 1:
+                    # 个人结算
+                    income_log = income_log_dict.get(key)
+                    withdraw = withdraw_log_dict.get(user_id, 0)
+                    if not income_log:
+                        if balance != 0:
+                            lst.append(dict(zip(head, (user_id, agent_id, union_id,
+                                                       user_type, str(balance), 0, str(withdraw)))))
+                    else:
+                        user_id, agent_id, union_id, income_type, income = income_log
+                        if Decimal(withdraw) + Decimal(balance) != Decimal(income):
+                            lst.append(dict(zip(head, (user_id, agent_id, union_id,
+                                                       user_type, str(balance), str(income), str(withdraw)))))
+
+                            # 公会结算，经纪人结算
+                elif user_type == 2 or user_type == 3:
+                    key = str(agent_id) + '_' + str(union_id) + '_' + str(user_type)
+
+                    income_log = income_log_dict2.get(key)
+                    if not income_log:
+                        if balance != 0:
+                            lst.append(dict(zip(head, (user_id, agent_id, union_id,
+                                                       user_type, str(balance), 0, 0))))
+                    else:
+                        agent_id, union_id, income_type, income = income_log
+                        if balance != income:
+                            lst.append(dict(zip(head, (0, agent_id, union_id,
+                                                       user_type, str(balance), str(income), 0))))
+
+            # 结算异常情况插入表
+
+            check_result = 1 if len(lst) == 0 else 0
+            if check_result == 0:
+                self.db_adm.query(AdmIncomeCheckDetail). \
+                    filter(AdmIncomeCheckDetail.check_id == check_id, AdmIncomeCheckDetail.check_type == 1). \
+                    delete(synchronize_session=False)
+
+            for d in lst:
+                # user_id, agent_id, union_id, user_type, \
+                # balance, income, withdraw = d
+                aicd = AdmIncomeCheckDetail()
+                aicd.user_id = d["user_id"]
+                aicd.check_id = check_id
+                aicd.agent_id = d["agent_id"]
+                aicd.union_id = d["union_id"]
+                aicd.user_type = d["user_type"]
+                aicd.balance = d["balance_income"]
+                aicd.income = d["account_income"]
+                aicd.withdraw = d["withdraw_income"]
+                aicd.check_type = 1
+                self.db_adm.add(aicd)
+
+            # 备份文件
+
+            date_now = str(int(time.time()))
+            file_name = date_now + '.json'
+            path = os.path.abspath(os.path.join(__file__, "..", "..", "..", "..", "data", file_name))
+            with open(path, 'w') as f:
+                for r in account_log_result:
+                    user_id, agent_id, union_id, user_type, balance = r
+                    temp = {"user_id": user_id, "agent_id": agent_id, "union_id": union_id, "user_type": user_type,
+                            "balance": str(balance)}
+                    f.writelines(json.dumps(temp) + "\n")
+
+            # 修改对应的结算日志信息
+
+            user = self.current_user
+            self.db_adm.query(AdmIncomeCheck).filter(AdmIncomeCheck.check_id == check_id).update({
+                AdmIncomeCheck.account_num: account_num, AdmIncomeCheck.check_user: user['name'],
+                AdmIncomeCheck.global_check_time: datetime.datetime.now(), AdmIncomeCheck.income_log_num: income_log_num,
+                AdmIncomeCheck.withdraw_num: withdraw_num, AdmIncomeCheck.global_check_result: check_result,
+                AdmIncomeCheck.backup_file: file_name
+            })
+
+            self.db_adm.commit()
+            self.write_json(0)
+        except Exception as e:
+            self.db_adm.rollback()
+            log.e(e)
+            self.write_json(-1)
+        finally:
+            self.db_wealth.close()
+            self.db_adm.close()
+
+
+class CheckIncreHander(SwxJsonHandler):
+
+    @tornado.gen.coroutine
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        yield self.check_income()
+
+    @run_on_executor
+    def check_income(self):
+        try:
+            check_id = self.get_argument('check_id', None)
+            playnum = self.get_argument('playnum', None)
+            # 获取前一条数据
+            sql_next = 'SELECT backup_file,log_time FROM adm_income_check ' \
+                       'where check_id<{} and backup_file is not NULL  ORDER BY check_id DESC LIMIT 0,1'.format(check_id)
+            backup_data = self.db_adm.execute(sql_next).first()
+            if not backup_data:
+                self.write_json(-1, '当前状态不可增量对账，请全局对账')
+                return
+
+            backup_file_name, backup_check_date = backup_data
+            if not backup_file_name or not backup_check_date:
+                self.write_json(-1, '当前状态不可增量对账，请全局对账')
+                return
+
+            date = str(backup_check_date)
+            sql_income_log = 'SELECT user_id,agent_id,union_id,income_type,sum(income)' \
+                             ' from T_log_income_anchor where create_time>\'{}\' ' \
+                             'GROUP BY user_id,agent_id,union_id,income_type'.format(date)
+            income_log_result = self.db_wealth.execute(sql_income_log).fetchall()
+            income_log_dict = {str(p[0]) + '_' + str(p[1]) + '_' + str(p[2]): p for p in income_log_result}
+
+            sql_income_log2 = 'SELECT agent_id,union_id,income_type,sum(income) from' \
+                              ' T_log_income_anchor where create_time>\'{}\' GROUP BY' \
+                              ' agent_id,union_id,income_type'.format(date)
+            income_log_result2 = self.db_wealth.execute(sql_income_log2).fetchall()
+            income_log_dict2 = {str(p[0]) + '_' + str(p[1]) + '_' + str(p[2]): p for p in income_log_result2}
+
+            # 提现
+            sql_income_withdraw = 'SELECT user_id, sum(money+sevice_money-money_rp) ' \
+                                  ' log_income from T_log_withdraw_anchor where ' \
+                                  'create_time > \'{}\' GROUP BY user_id'.format(date)
+            withdraw_log_result = self.db_wealth.execute(sql_income_withdraw).fetchall()
+            withdraw_log_dict = {p[0]: p[1] for p in withdraw_log_result}
+
+            # 账户余额
+            sql_account_log = 'SELECT user_id,agent_id,union_id,user_type ,sum(balance) ' \
+                              ' from T_account_anchor  GROUP BY agent_id,union_id,user_type,user_id;'
+            account_log_result = self.db_wealth.execute(sql_account_log).fetchall()
+
+            anchorbackup1 = dict()
+            anchorbackup2 = dict()
+            if backup_file_name:
+                back_path = os.path.abspath(os.path.join(__file__, "..", "..",
+                                                         "..", "..", "data", backup_file_name.strip()))
+                with open(back_path, 'r') as f:
+                    lines = f.readlines()
+                    for l in lines:
+                        data = json.loads(l)
+                        key1 = str(data['user_id']) + '_' + str(data['agent_id']) + '_' + str(data['union_id'])
+                        key2 = str(data['agent_id']) + '_' + str(data['union_id']) + '_' + str(data['user_type'])
+                        anchorbackup1[key1] = data['balance']
+                        anchorbackup2[key2] = data['balance']
+
+            account_num = len(account_log_result)
+            income_log_num = len(income_log_result) + len(income_log_result2)
+            withdraw_num = len(withdraw_log_result)
+
+            lst = list()
+            head = ['user_id', 'agent_id', 'union_id', 'user_type', 'balance_income',
+                    'account_income', 'withdraw_income']
+            for acc in account_log_result:
+                # 　更新进度信息
+                now = app_checkAccount[int(playnum)]["now"] + 1
+                # max = len(account_log_result)
+                app_checkAccount[int(playnum)] = {"now": now, "max": account_num}
+
+                user_id, agent_id, union_id, user_type, balance = acc
+                key = str(user_id) + '_' + str(agent_id) + '_' + str(union_id)
+                if user_type == 1:
+                    # 个人结算
+                    income_log = income_log_dict.get(key)
+                    withdraw = withdraw_log_dict.get(user_id, 0)
+                    if income_log:
+                        user_id, agent_id, union_id, income_type, income = income_log
+                        backup_balance = anchorbackup1.get(key, 0)
+                        if Decimal(withdraw) + Decimal(balance) - Decimal(backup_balance) != Decimal(income):
+                            lst.append(dict(zip(head, (user_id, agent_id, union_id,
+                                                       user_type, str(balance), str(income), str(withdraw)))))
+
+                            # 公会结算，经纪人结算
+                elif user_type == 2 or user_type == 3:
+                    key = str(agent_id) + '_' + str(union_id) + '_' + str(user_type)
+
+                    income_log = income_log_dict2.get(key)
+                    if income_log:
+                        agent_id, union_id, income_type, income = income_log
+                        backup_balance = anchorbackup2.get(key, 0)
+                        if Decimal(balance) - Decimal(backup_balance) != Decimal(income):
+                            lst.append(dict(zip(head, (0, agent_id, union_id,
+                                                       user_type, str(balance), str(income), 0))))
+
+            # 结算异常情况插入表
+
+            check_result = 1 if len(lst) == 0 else 0
+            if check_result == 0:
+                self.db_adm.query(AdmIncomeCheckDetail). \
+                    filter(AdmIncomeCheckDetail.check_id == check_id, AdmIncomeCheckDetail.check_type == 2). \
+                    delete(synchronize_session=False)
+
+            for d in lst:
+                # user_id, agent_id, union_id, user_type, \
+                # balance, income, withdraw = d
+                aicd = AdmIncomeCheckDetail()
+                aicd.user_id = d["user_id"]
+                aicd.check_id = check_id
+                aicd.agent_id = d["agent_id"]
+                aicd.union_id = d["union_id"]
+                aicd.user_type = d["user_type"]
+                aicd.balance = d["balance_income"]
+                aicd.income = d["account_income"]
+                aicd.withdraw = d["withdraw_income"]
+                aicd.check_type = 2
+                self.db_adm.add(aicd)
+
+            # 备份文件
+            date_now = str(int(time.time()))
+            file_name = date_now + '.json'
+            path = os.path.abspath(os.path.join(__file__, "..", "..", "..", "..", "data", file_name))
+            with open(path, 'w') as f:
+                for r in account_log_result:
+                    user_id, agent_id, union_id, user_type, balance = r
+                    temp = {"user_id": user_id, "agent_id": agent_id, "union_id": union_id, "user_type": user_type,
+                            "balance": str(balance)}
+                    f.writelines(json.dumps(temp) + "\n")
+
+            # 修改对应的结算日志信息
+            user = self.current_user
+            self.db_adm.query(AdmIncomeCheck).filter(AdmIncomeCheck.check_id == check_id).update({
+                AdmIncomeCheck.account_num: account_num, AdmIncomeCheck.check_user: user['name'],
+                AdmIncomeCheck.incre_check_time: datetime.datetime.now(), AdmIncomeCheck.income_log_num: income_log_num,
+                AdmIncomeCheck.withdraw_num: withdraw_num, AdmIncomeCheck.incre_check_result: check_result,
+                AdmIncomeCheck.backup_file: file_name
+            })
+
+            self.db_adm.commit()
+            self.write_json(0)
+        except Exception as e:
+            self.db_adm.rollback()
+            log.e(e)
+            self.write_json(-1)
+        finally:
+            self.db_wealth.close()
+            self.db_adm.close()
+
+
+class CheckAccountListHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self):
+        self.render("/ads_manager/checkAccount/checkaccount.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+
+        # 今天没有数据生成一条
+        today = datetime.date.today()
+        sql_today = 'select count(*) from adm_income_check WHERE check_date = \'{}\''.format(today)
+        if_data = self.db_adm.execute(sql_today).scalar() == 0
+        if if_data:
+            aic = AdmIncomeCheck()
+            aic.check_date = today
+            aic.create_time = datetime.datetime.now()
+            self.db_adm.add(aic)
+            try:
+                self.db_adm.commit()
+            except Exception as e:
+                self.db_adm.rollback()
+                self.db_adm.close()
+                log.e(e)
+        sql_check = 'SELECT check_id,check_date,account_num,withdraw_num,income_log_num,' \
+                    'backup_file,check_user,global_check_result,global_check_time,incre_check_result,incre_check_time' \
+                    ' FROM adm_income_check '
+        limit, args = self.get_pages_args()
+        offset = " ORDER BY check_id DESC LIMIT {},{}" \
+            .format(limit['page_index'] * limit['per_page'], limit['per_page'])
+
+        try:
+            result_set = self.db_adm.execute(sql_check + offset).fetchall()
+            count = self.db_adm.execute("select count(*) from({}) as count_data".format(sql_check)).scalar()
+            head = ['check_id', 'check_date', 'account_num', 'withdraw_num',
+                    'income_log_num', 'backup_file', 'check_user', 'global_check_result',
+                    'global_check_time', 'incre_check_result', 'incre_check_time']
+            lst = list()
+            for data in result_set:
+                temp = dict(zip(head, data))
+                temp['check_date'] = temp['check_date'].isoformat() if temp['check_date'] else ''
+                temp['global_check_time'] = temp['global_check_time'].isoformat() if temp['global_check_time'] else ''
+                temp['incre_check_time'] = temp['incre_check_time'].isoformat() if temp['incre_check_time'] else ''
+                lst.append(temp)
+
+            ret = self.set_page_params(count, limit, lst)
+            self.write_json(0, data=ret)
+        except Exception as e:
+            log.e(e)
+            self.write_json(-1, '查询失败')
+        finally:
+            self.db_adm.close()
+
+
+# 结算异常详情
+class CheckAccountDetailHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        check_id = self.get_argument('check_id')
+        check_type = self.get_argument('type')
+        sql = 'SELECT detail_id,check_id,user_id,user_type,agent_id,' \
+              'union_id,balance,income,withdraw from adm_income_check_detail ' \
+              'where check_id={} and check_type= {}'.format(check_id, check_type)
+        try:
+            ret = self.db_adm.execute(sql).fetchall()
+        finally:
+            self.db_adm.close()
+        lst = list()
+        head = ['detail_id', 'check_id', 'user_id', 'user_type', 'agent_id', 'union_id', 'balance', 'income',
+                'withdraw']
+        for r in ret:
+            temp = dict(zip(head, r))
+            temp['balance'] = str(temp['balance']) if temp['balance'] is not None else 0
+            temp['income'] = str(temp['income']) if temp['income'] is not None else 0
+            temp['withdraw'] = str(temp['withdraw']) if temp['withdraw'] is not None else 0
+            lst.append(temp)
+        self.write_json(0, '', lst)
+
+
+class CheckAccountSelectHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self):
+        playnum = self.get_argument("playnum", None)
+        if playnum is None:
+            self.write_json(-1, 'playlog进度序列号不能为空')
+            return
+        if int(playnum) not in app_checkAccount:
+            app_checkAccount[int(playnum)] = {"now": 0, "max": 0}
+        self.write_json(0, '', app_checkAccount[int(playnum)])
+
+
+class CheckAccountCreateHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        date_now = int(time.time())
+        app_checkAccount[date_now] = {"now": 0, "max": 0}
+        self.write_json(0, '', date_now)
+
+
+class updateHander(SwxJsonHandler):
+    def get(self):
+
+        sql = '''	SELECT
+			b.play_id
+		FROM
+			xhl_wealth.T_log_income_anchor a
+		LEFT JOIN xhl_anchor.ads_task_play_log b ON a.play_id = b.play_id'''
+        results = self.db_ads.execute(sql).fetchall()
+        a = list()
+        for r in results:
+            a.append(str(r[0]))
+        a = ",".join(a)
+
+        sql_update = '''
+            UPDATE ads_task_play_log
+SET is_count_money = 1
+WHERE play_id in ({})
+              '''.format(a)
+
+        try:
+            self.db_ads.execute(sql_update)
+            self.db_ads.commit()
+        except Exception as e:
+            print(e)
+        finally:
+            self.db_ads.close()

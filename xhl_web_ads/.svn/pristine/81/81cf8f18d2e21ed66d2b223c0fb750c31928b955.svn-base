@@ -1,0 +1,1485 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+"""
+@author: lvguangchao
+@email: guangchao.lv@qq.com
+@file: ads.py
+@time: 2017/11/7 13:58
+"""
+from eom_common.eomcore.logger import *
+from .base import SwxJsonHandler
+
+from eom_app.orm.tables import AdsInfo, ContractPackInfo, NeedInfo, NeedGroupInfo, AdsContractInfo,\
+    GroupNeedMap,NeedSchedule,AdsConfigAnchorWhitelist, AdsConfigAnchorBlacklist, NeedSchedule
+from .helper import randomCode
+from sqlalchemy import func, or_
+import json, os, base64, datetime, tornado, random
+from  eom_app.orm.JSONEncoder import AlchemyEncoder
+from eom_common.eomcore.logger import log
+from eom_app.controller.helper.uploadManager import app_upManager
+from eom_app.app.configs import app_cfg
+
+cfg = app_cfg()
+import time, zipfile
+
+app_upManager = app_upManager()
+
+
+####---------------广告---------------------------------
+class AdsInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/ads_info/adsinfo_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+
+        sql = "SELECT ads_id,ads_name,ads_materialurl,ads_materialurl_md5,ads_thumbnailurl,ads_contents,logtime,ads_time  from ads_info where 1=1"
+
+        filter = args["filter"]
+        name = ""
+        if "search" in filter.keys():
+            name = filter["search"]
+        if name is not None and name != "":
+            sql = sql + " and ads_name like '%" + name.strip() + "%'"
+        offset = " ORDER BY logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+        datas = self.db_ads.execute(sql + offset).fetchall()
+
+        lst = list()
+        for data in datas:
+            ads_id = data[0]
+            ads_name = data[1]
+            ads_materialurl = data[2]
+            ads_materialurl_md5 = data[3]
+            ads_thumbnailurl = data[4]
+            ads_contents = data[5]
+            logtime = data[6].isoformat()
+            ads_time = data[7]
+            lst.append(
+                {"ads_id": ads_id, "ads_name": ads_name, "ads_materialurl": ads_materialurl, "ads_time": ads_time,
+                 "ads_materialurl_md5": ads_materialurl_md5, "ads_thumbnailurl": ads_thumbnailurl,
+                 "logtime": logtime, "ads_contents": ads_contents})
+
+        count = self.db_ads.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class adsinfoAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        file_metas = self.request.files.get("file", None)  # 获取上传视频信息
+        file_metas_pic = self.request.files.get("file_pic", None)  # 获取上传图片信息
+        task_gen = self.get_argument("task_gen", None)
+        ads_contents = self.get_argument("ads_contents", None)
+        ads_name = self.get_argument("ads_name", None)
+        ads_time = self.get_argument("ads_time", None)
+        if not task_gen:
+            self.write_json(-1, "系统错误,请重试")
+            return
+
+        adsinfo = AdsInfo()
+        adsinfo.ads_contents = ads_contents
+        adsinfo.ads_name = ads_name
+        adsinfo.ads_time = int(ads_time) if ads_time is not None else 0
+        try:
+            self.db_ads.add(adsinfo)
+            self.db_ads.commit()
+        except Exception as  e:
+            self.db_ads.rollback()
+            self.db_ads.close()
+            log.e(e)
+            self.write_json(500, "添加失败")
+            return
+
+        if adsinfo.ads_id is None:
+            self.write_json(-1, "系统错误")
+            return
+
+        upload = app_upManager.find_task(task_gen).uploadSSH
+        remotePath = cfg.file_remotePath + "/" + str(adsinfo.ads_id)  # 文件夹路径
+
+        v_data = self.db_ads.query(AdsInfo).filter(AdsInfo.ads_id == adsinfo.ads_id).first()
+
+        if file_metas:
+            for meta in file_metas:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                (fn, extension) = os.path.splitext(file_name)
+                t = int(time.time())
+                file_name = "{}_{}{}".format(str(adsinfo.ads_id), t, extension)  # 文件名称
+                yield self.upload_task(upload, meta['body'], remotePath, file_name)
+                import hashlib  # 计算文件的MD5
+                md5_obj = hashlib.md5()
+                md5_obj.update(meta['body'])
+                hash_code = md5_obj.hexdigest()
+                md5 = str(hash_code).upper()
+                v_data.ads_materialurl = file_name
+                v_data.ads_materialurl_md5 = md5
+
+        if file_metas_pic:
+            for meta in file_metas_pic:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                (fn, extension) = os.path.splitext(file_name)
+                t = int(time.time())
+                file_name = "{}_{}{}".format(str(adsinfo.ads_id), t, extension)  # 文件名称
+                yield self.upload_task(upload, meta['body'], remotePath, file_name)
+                v_data.ads_thumbnailurl = file_name
+
+        try:
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "添加失败")
+        finally:
+            self.db_ads.close()
+
+
+class adsinfoEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        file_metas = self.request.files.get("file", None)  # 获取上传视频信息
+        file_metas_pic = self.request.files.get("file_pic", None)  # 获取上传图片信息
+        task_gen = self.get_argument("task_gen", None)
+        ads_id = self.get_argument("ads_id", None)
+        ads_contents = self.get_argument("ads_contents", None)
+        ads_name = self.get_argument("ads_name", None)
+        ads_time = self.get_argument("ads_time", None)
+        if not task_gen:
+            self.write_json(-1, "系统错误,请重试")
+            return
+
+        v_data = self.db_ads.query(AdsInfo).filter(AdsInfo.ads_id == ads_id).first()
+        v_data.ads_contents = ads_contents
+        v_data.ads_name = ads_name
+        v_data.ads_time = int(ads_time) if ads_time is not None else 0
+
+        upload = app_upManager.find_task(task_gen).uploadSSH
+        remotePath = cfg.file_remotePath + "/" + str(v_data.ads_id)  # 文件夹路径
+
+        if file_metas:
+            for meta in file_metas:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                (fn, extension) = os.path.splitext(file_name)
+                t = int(time.time())
+                file_name = "{}_{}{}".format(str(v_data.ads_id), t, extension)  # 文件名称
+                yield self.upload_task(upload, meta['body'], remotePath, file_name)
+                import hashlib  # 计算文件的MD5
+                md5_obj = hashlib.md5()
+                md5_obj.update(meta['body'])
+                hash_code = md5_obj.hexdigest()
+                md5 = str(hash_code).upper()
+                v_data.ads_materialurl = file_name
+                v_data.ads_materialurl_md5 = md5
+
+        if file_metas_pic:
+            for meta in file_metas_pic:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                (fn, extension) = os.path.splitext(file_name)
+                t = int(time.time())
+                file_name = "{}_{}{}".format(str(v_data.ads_id), t, extension)  # 文件名称
+                yield self.upload_task(upload, meta['body'], remotePath, file_name)
+                v_data.ads_thumbnailurl = file_name
+
+        try:
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "修改失败")
+        finally:
+            self.db_ads.close()
+
+
+class adsInfoDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(AdsInfo).filter(AdsInfo.ads_id.in_(ids)).delete(synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+# ------------需求---------------------
+class needInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/need_info/needinfo_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+
+        sql = "SELECT  n.need_id,p.package_name,n.need_play_type,n.anchor_level,n.position,n.ads_id,n.enable,n.logtime,n.description" \
+              ",n.need_name from ads_need_info n  LEFT JOIN ads_contract_package_info p ON n.package_id=p.package_id where 1=1"
+
+        filter = args["filter"]
+        name = ""
+        if "search" in filter.keys():
+            name = filter["search"]
+        if name is not None and name != "":
+            sql = sql + " and n.need_name like '%" + name.strip() + "%' "
+        offset = " ORDER BY n.logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+        datas = self.db_ads.execute(sql + offset).fetchall()
+
+        lst = list()
+        for data in datas:
+            need_id = data[0]
+            package_name = data[1]
+            need_play_type = data[2]
+            anchor_level = data[3]
+            position = data[4]
+            ads_id = data[5]
+            enable = data[6]
+            logtime = data[7].isoformat()
+
+            description = data[8]
+            need_name = data[9]
+            lst.append({"need_id": need_id, "package_name": package_name, "need_play_type": need_play_type,
+                        "description": description,
+                        "anchor_level": anchor_level, "position": position, "ads_id": ads_id, "enable": enable,
+                        "logtime": logtime,
+                        "need_name": need_name})
+
+        count = self.db_ads.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+#
+
+class adsInfoFindByIdHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id = self.get_argument("id", None)
+        data = self.db_ads.query(AdsInfo).filter(AdsInfo.ads_id == id).first()
+        lst = json.loads(json.dumps(data, cls=AlchemyEncoder))
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+
+# 素材List
+
+class adsInfoSelect4AllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        ads_list = self.db_ads.query(AdsInfo).all()
+        lst = list()
+        for ptype in ads_list:
+            lst.append(json.loads(json.dumps(ptype, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+
+# ContractPackInfo    List
+class contPackInfoSelect4AllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        ads_list = self.db_ads.query(ContractPackInfo).all()
+        lst = list()
+        for ptype in ads_list:
+            lst.append(json.loads(json.dumps(ptype, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+
+        self.db_ads.close()
+
+
+####---------------合同---------------------------------
+class contractInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/contract_info/contractinfo_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        filter = args["filter"]
+        contractid = ''
+        if "search" in filter.keys():
+            contractid = filter["search"]
+        query = self.db_ads.query(AdsContractInfo)
+        if contractid:
+            # name = '%' + name + '%'
+            query = query.filter(AdsContractInfo.contract_id == contractid)
+        query_result = query.all()
+        total = query.count()
+
+        lst = list()
+        for item in query_result:
+            lst.append({
+                'contract_id': item.contract_id or '',
+                'contract_name': item.contract_name or '',
+                'contract_price': item.contract_price or '',
+                'adsver_id': item.adsver_id or '',
+                'contract_desc': item.contract_desc or '',
+                'create_time': item.create_time.isoformat() or '',
+            })
+        # print(lst)
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = total
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class contractAddInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        contract_name = self.get_argument("contract_name", None)
+        contract_price = self.get_argument("contract_price", None)
+        adsver_id = self.get_argument("adsver_id", None)
+        contract_desc = self.get_argument("contract_desc", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            # create_time = args["create_time"]
+            contract_name = args["contract_name"]
+            contract_price = args["contract_price"]
+            adsver_id = args["adsver_id"]
+            contract_desc = args["contract_desc"]
+
+        try:
+            date_now = datetime.datetime.now()
+            item = AdsContractInfo(contract_name=contract_name, contract_price=contract_price, adsver_id=adsver_id,
+                                   contract_desc=contract_desc,
+                                   create_time=date_now
+                                   )
+            self.db_ads.add(item)
+            self.db_ads.commit()
+
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class contractDelInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(AdsContractInfo).filter(AdsContractInfo.contract_id.in_(ids)).delete(
+                    synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+class contractEdInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        contract_id = self.get_argument("contract_id", None)
+        contract_name = self.get_argument("contract_name", None)
+        contract_price = self.get_argument("contract_price", None)
+        adsver_id = self.get_argument("adsver_id", None)
+        contract_desc = self.get_argument("contract_desc", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            contract_id = args["contract_id"]
+            contract_name = args["contract_name"]
+            contract_price = args["contract_price"]
+            adsver_id = args["adsver_id"]
+            contract_desc = args["contract_desc"]
+
+        try:
+            self.db_ads.query(AdsContractInfo).filter(AdsContractInfo.contract_id == contract_id).update(
+                {AdsContractInfo.contract_name: contract_name, AdsContractInfo.contract_price: contract_price,
+                 AdsContractInfo.adsver_id: adsver_id, AdsContractInfo.contract_desc: contract_desc})
+            # sql_session.update({TStatUnionConfig.eff_airtime: time_len})
+
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class NeedInfoFindByIdIdHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id = self.get_argument("id", None)
+        data = self.db_ads.query(NeedInfo).filter(NeedInfo.need_id == id).first()
+        lst = json.loads(json.dumps(data, cls=AlchemyEncoder))
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+
+class NeedInfoAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        package_id = args["package_id"]
+        need_play_type = args["need_play_type"]
+        anchor_level = args["anchor_level"]
+        position = args["position"]
+        ads_id = args["ads_id"]
+        description = args["description"]
+        enable = args["enable"]
+        need_name = args["need_name"]
+        needinfo = NeedInfo()
+        needinfo.package_id = package_id
+        needinfo.need_play_type = need_play_type
+        needinfo.anchor_level = anchor_level
+        needinfo.position = position
+        needinfo.ads_id = ads_id
+        position_count = len(position.split(",")) if position is not None else 0
+        needinfo.position_count = position_count
+        needinfo.description = description
+        needinfo.enable = enable
+        needinfo.need_name = need_name
+        self.db_ads.add(needinfo)
+        try:
+            self.db_ads.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db_ads.close()
+
+
+class NeedInfoEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        package_id = args["package_id"]
+        need_play_type = args["need_play_type"]
+        anchor_level = args["anchor_level"]
+        position = args["position"]
+        ads_id = args["ads_id"]
+        description = args["description"]
+        enable = args["enable"]
+        need_name = args["need_name"]
+        id = args["id"]
+        v_data = self.db_ads.query(NeedInfo).filter(NeedInfo.need_id == id).first()
+        v_data.package_id = package_id
+        v_data.need_play_type = need_play_type
+        v_data.anchor_level = anchor_level
+        v_data.position = position
+        v_data.ads_id = ads_id
+        v_data.description = description
+        v_data.enable = enable
+        v_data.need_name = need_name
+        position_count = len(position.split(",")) if position is not None else 0
+        v_data.position_count = position_count
+        try:
+            self.db_ads.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db_ads.close()
+
+
+class needInfoDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(NeedInfo).filter(NeedInfo.need_id.in_(ids)).delete(synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+# needinfo  List
+class NeedInfo4AllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        anchor_level=self.get_argument("anchor_level",None)
+        package_id=self.get_argument("package_id",None)
+        query=self.db_ads.query(NeedInfo)
+        if anchor_level is not None and anchor_level!="":
+            query=query.filter(NeedInfo.anchor_level==anchor_level)
+        if package_id is not None and package_id!="":
+            query=query.filter(NeedInfo.package_id==package_id)
+        ni_list=query.all()
+        lst = list()
+        for n in ni_list:
+            lst.append(json.loads(json.dumps(n, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+
+
+
+class needGroupInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/need_group/needgroup_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        sql = "SELECT group_name,ads_need_group_id,anchor_alloc_type,comment,(SELECT GROUP_CONCAT(a.ads_need_id)  as need_ids FROM ads_group_need_map a where a.ads_group_id=b.ads_need_group_id) as need_id," \
+              "logtime,anchor_level from ads_group_info b where 1=1"
+        filter = args["filter"]
+        name = ""
+        if "search" in filter.keys():
+            name = filter["search"]
+        if name is not None and name != "":
+            sql = sql + " and group_name like '%" + name.strip() + "%' "
+        offset = " ORDER BY logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+        datas = self.db_ads.execute(sql + offset).fetchall()
+
+        lst = list()
+        for data in datas:
+            group_name = data[0]
+            ads_need_group_id = data[1]
+            anchor_alloc_type = data[2]
+            comment = data[3]
+            need_id = data[4]
+            logtime = data[5].isoformat()
+            anchor_level = data[6]
+            lst.append({"group_name": group_name, "ads_need_group_id": ads_need_group_id,
+                        "anchor_alloc_type": anchor_alloc_type,
+                        "comment": comment, "logtime": logtime, "need_id": need_id,"anchor_level":anchor_level})
+
+        count = self.db_ads.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class NeedGroupInfoAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        group_name = args["group_name"]
+        anchor_alloc_type = args["anchor_alloc_type"]
+        comment = args["comment"]
+        anchor_level = args["anchor_level"]
+        if group_name is not None:
+            num=self.db_ads.query(NeedGroupInfo).filter(NeedGroupInfo.group_name==group_name).count()
+            if num>0:
+                self.write_json(-1,"分组名称不能重复")
+                return
+        ng = NeedGroupInfo()
+        ng.group_name = group_name
+        ng.anchor_alloc_type = anchor_alloc_type
+        ng.comment = comment
+        ng.anchor_level = anchor_level
+        self.db_ads.add(ng)
+        try:
+            self.db_ads.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db_ads.close()
+
+
+class NeedGroupInfoEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        group_name = args["group_name"]
+        anchor_alloc_type = args["anchor_alloc_type"]
+        comment = args["comment"]
+        anchor_level = args["anchor_level"]
+        id = args["id"]
+        v_data = self.db_ads.query(NeedGroupInfo).filter(NeedGroupInfo.ads_need_group_id == id).first()
+        v_data.group_name = group_name
+        v_data.anchor_alloc_type = anchor_alloc_type
+        v_data.comment = comment
+        v_data.anchor_level = anchor_level
+
+        try:
+            self.db_ads.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db_ads.close()
+
+class NeedGroupInfoAllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        ngi_list=self.db_ads.query(NeedGroupInfo).all()
+        lst = list()
+        for ngi in ngi_list:
+            lst.append(json.loads(json.dumps(ngi, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+
+class NeedGroupInfoDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(NeedGroupInfo).filter(NeedGroupInfo.ads_need_group_id.in_(ids)).delete(
+                    synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+class needScheduleHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/need_schedule/needschedule_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        sql = "SELECT  s.schedule_id,g.group_name,s.count,s.anchor_if_exp,s.lv_priority,s.logtime,s.schedule_create_time from ads_need_schedule s LEFT JOIN ads_group_info g on s.group_id=g.ads_need_group_id where 1=1"
+        filter = args["filter"]
+        name = ""
+        if "search" in filter.keys():
+            name = filter["search"]
+        if name is not None and name != "":
+            sql = sql + " and g.group_name like '%" + name.strip() + "%' "
+        offset = " ORDER BY s.logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+        datas = self.db_ads.execute(sql + offset).fetchall()
+
+        lst = list()
+        for data in datas:
+            schedule_id = data[0]
+            group_name = data[1]
+            count = data[2]
+            anchor_if_exp = data[3]
+            lv_priority = data[4]
+            logtime = data[5].isoformat()
+            schedule_create_time = data[6].isoformat()
+            lst.append({"schedule_id": schedule_id, "group_name": group_name, "count": count,
+                        "anchor_if_exp": anchor_if_exp,
+                        "lv_priority": lv_priority,
+                        "logtime": logtime,
+                        "schedule_create_time":schedule_create_time})
+
+        count = self.db_ads.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class needScheduleAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/need_schedule/needshcdule_create.mako")
+
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        param=self.get_argument("param")
+        if param is not None:
+            param = json.loads(param)
+            for p in param:
+                group_name = p["group_name"]
+                count = p["count"]
+                anchor_if_exp = p["anchor_if_exp"]
+                lv_priority = p["lv_priority"]
+                create_time = p["create_time"]
+                ns = NeedSchedule()
+                ns.group_id=int(group_name)
+                ns.count=int(count)
+                ns.anchor_if_exp=anchor_if_exp
+                ns.lv_priority=lv_priority
+                ns.schedule_create_time=create_time
+                ns.schedule_destroy_time=create_time
+                ns.start_alloc_time=create_time
+                ns.end_alloc_time=create_time
+
+                self.db_ads.add(ns)
+            try:
+                self.db_ads.commit()
+                self.write_json(0)
+            except Exception as e:
+                self.db_ads.rollback()
+                log.e(e)
+                self.write_json(500, "添加失败")
+            finally:
+                self.db_ads.close()
+        else:
+            self.write_json(-1,"没有需要添加的schedule数据")
+
+
+class needScheduleUpdateHander(SwxJsonHandler):
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument("args")
+        if args is not None:
+            args = json.loads(args)
+            group_name = args["group_name"]
+            count = args["count"]
+            anchor_if_exp = args["anchor_if_exp"]
+            lv_priority = args["lv_priority"]
+            schedule_create_time = args["schedule_create_time"]
+            id = args["id"]
+            ns=self.db_ads.query(NeedSchedule).filter(NeedSchedule.schedule_id==id).first()
+            ns.group_id = int(group_name)
+            ns.count = int(count)
+            ns.anchor_if_exp = anchor_if_exp
+            ns.lv_priority = lv_priority
+            ns.schedule_create_time = schedule_create_time
+            ns.schedule_destroy_time = schedule_create_time
+            ns.start_alloc_time = schedule_create_time
+            ns.end_alloc_time = schedule_create_time
+            try:
+                self.db_ads.commit()
+                self.write_json(0)
+            except Exception as e:
+                self.db_ads.rollback()
+                log.e(e)
+                self.write_json(500, "修改失败")
+            finally:
+                self.db_ads.close()
+
+
+class needScheduleDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(NeedSchedule).filter(NeedSchedule.schedule_id.in_(ids)).delete(
+                    synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+####---------------合同(对应的套餐包)---------------------------------
+class ContractPackageInfoHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id = self.get_argument("id", None)
+        data = self.db_ads.query(ContractPackInfo).filter(ContractPackInfo.contract_id == id).first()
+        lst = json.loads(json.dumps(data, cls=AlchemyEncoder))
+        if data:
+            need_desc = json.loads(data.need_desc)
+            lst['S'] = str(need_desc['S'])
+            lst['A'] = str(need_desc['A'])
+            lst['B'] = str(need_desc['B'])
+            lst['C'] = str(need_desc['C'])
+            lst['D'] = str(need_desc['D'])
+        else:
+            self.write_json(-1, '没有对应的套餐数据')
+            return
+        self.write_json(0, '', lst)
+        self.db_ads.close()
+
+
+####---------------合同---------------------------------
+class ContractPackageInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/contractpackage_info/contractpackage_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        filter = args["filter"]
+        packageid = ''
+        if "search" in filter.keys():
+            packageid = filter["search"]
+        query = self.db_ads.query(ContractPackInfo)
+        if packageid:
+            query = query.filter(ContractPackInfo.package_id == packageid)
+        query_result = query.all()
+        total = query.count()
+
+        lst = list()
+        S = 0
+        A = 0
+        B = 0
+        C = 0
+        D = 0
+
+        for item in query_result:
+            if query_result:
+                need_desc_json = json.loads(item.need_desc)
+                S = str(need_desc_json['S'])
+                A = str(need_desc_json['A'])
+                B = str(need_desc_json['B'])
+                C = str(need_desc_json['C'])
+                D = str(need_desc_json['D'])
+            lst.append({
+                'package_id': item.package_id or '',
+                'package_name': item.package_name or '',
+                'contract_id': item.contract_id or '',
+                'package_price': str(item.package_price) or '',
+                'begin_time': item.begin_time.isoformat() or '',
+                'end_time': item.end_time.isoformat() or '',
+                'anchor_count': item.anchor_count or '',
+                'anchor_play_count': item.anchor_play_count or '',
+                'need_desc': item.need_desc or '',
+                'S': S,
+                'A': A,
+                'B': B,
+                'C': C,
+                'D': D,
+            })
+        # print(lst)
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = total
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class ContractAddPackageInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        package_name = self.get_argument("package_name", None)
+        contract_id = self.get_argument("contract_id", None)
+        package_price = self.get_argument("package_price", None)
+        begin_time = self.get_argument("begin_time", None)
+        end_time = self.get_argument("end_time", None)
+        anchor_count = self.get_argument("anchor_count", None)
+        anchor_play_count = self.get_argument("anchor_play_count", None)
+        S = self.get_argument("S", None)
+        A = self.get_argument("A", None)
+        B = self.get_argument("B", None)
+        C = self.get_argument("C", None)
+        D = self.get_argument("D", None)
+        need_desc = {}
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            # create_time = args["create_time"]
+            package_name = args["package_name"]
+            contract_id = args["contract_id"]
+            package_price = args["package_price"]
+            begin_time = args["begin_time"]
+            end_time = args["end_time"]
+            anchor_count = args["anchor_count"]
+            anchor_play_count = args["anchor_play_count"]
+            S = args["S"]
+            A = args["A"]
+            B = args["B"]
+            C = args["C"]
+            D = args["B"]
+            need_desc = {
+                "S": S,
+                "A": A,
+                "B": B,
+                "C": C,
+                "D": D
+            }
+            # print(need_desc)\
+            need_desc = json.dumps(need_desc)
+            print(need_desc)
+
+        try:
+            date_now = datetime.datetime.now()
+            item = ContractPackInfo(package_name=package_name, contract_id=contract_id, package_price=package_price,
+                                    begin_time=begin_time, end_time=end_time,
+                                    anchor_count=anchor_count,
+                                    anchor_play_count=anchor_play_count, need_desc=need_desc, create_time=date_now
+                                    )
+            self.db_ads.add(item)
+            self.db_ads.commit()
+
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class ContractDelPackageInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(ContractPackInfo).filter(ContractPackInfo.package_id.in_(ids)).delete(
+                    synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+class ContractEdPackageInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            package_id = args["package_id"]
+            package_name = args["package_name"]
+            contract_id = args["contract_id"]
+            package_price = args["package_price"]
+            begin_time = args["begin_time"]
+            end_time = args["end_time"]
+            anchor_count = args["anchor_count"]
+            anchor_play_count = args["anchor_play_count"]
+            S = args["S"]
+            A = args["A"]
+            B = args["B"]
+            C = args["C"]
+            D = args["B"]
+            need_desc = {
+                "S": S,
+                "A": A,
+                "B": B,
+                "C": C,
+                "D": D
+            }
+            # print(need_desc)\
+            need_desc = json.dumps(need_desc)
+
+        try:
+            self.db_ads.query(ContractPackInfo).filter(ContractPackInfo.package_id == package_id).update(
+                {ContractPackInfo.package_name: package_name, ContractPackInfo.contract_id: contract_id,
+                 ContractPackInfo.end_time: end_time, ContractPackInfo.anchor_count: anchor_count,
+                 ContractPackInfo.anchor_play_count: anchor_play_count,
+                 ContractPackInfo.need_desc: need_desc,
+                 ContractPackInfo.package_price: package_price, ContractPackInfo.begin_time: begin_time})
+            # sql_session.update({TStatUnionConfig.eff_airtime: time_len})
+
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class GroupNeedMapUpdateHander(SwxJsonHandler):
+
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            need_id = args["need_id"]
+            group_id = args["group_id"]
+            ifselect = args["ifselect"]
+            type = args["type"]
+            old_need_id = args["old_need_id"]
+
+        if ifselect == False and need_id != "":
+            # 删除
+            self.db_ads.query(GroupNeedMap).filter(GroupNeedMap.ads_group_id == group_id,
+                                                   GroupNeedMap.ads_need_id == need_id).delete(
+                synchronize_session=False)
+
+
+        elif ifselect == True and old_need_id != "":
+
+            num = self.db_ads.query(GroupNeedMap).filter(GroupNeedMap.ads_need_id == need_id,
+                                                         GroupNeedMap.ads_group_id == group_id).count()
+            if num > 0:
+                self.write_json(-1, "该分组已包含need_id")
+                return
+
+            v_data = self.db_ads.query(GroupNeedMap).filter(GroupNeedMap.ads_need_id == old_need_id,
+                                                            GroupNeedMap.ads_group_id == group_id).first()
+            if v_data is not None and type == "update":
+                # 修改
+                v_data.ads_need_id = need_id
+
+        elif ifselect == True and type == "insert" and need_id != "":
+            num = self.db_ads.query(GroupNeedMap).filter(GroupNeedMap.ads_need_id == need_id,
+                                                         GroupNeedMap.ads_group_id == group_id).count()
+            if num > 0:
+                self.write_json(-1, "该分组已包含need_id")
+                return
+
+            gnm = GroupNeedMap()
+            gnm.ads_group_id = group_id
+            gnm.ads_need_id = need_id
+            gnm.create_time = datetime.datetime.now()
+            self.db_ads.add(gnm)
+
+        try:
+            self.db_ads.commit()
+            self.write_json(0, 'success')
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+
+class GroupNeedMapSelectByIdHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        groupid=self.get_argument("groupid",None)
+        self.db_ads.query(GroupNeedMap).filter()
+        sql="SELECT i.anchor_level, i.need_id, i.ads_id from ads_group_need_map m  LEFT JOIN  ads_need_info  i  on i.need_id = m.ads_need_id where 1=1"
+        if groupid is not None and groupid!="":
+            sql=sql+" and m.ads_group_id = "+groupid+""
+        result=self.db_ads.execute(sql).fetchall()
+        lst=list()
+        for g in result:
+            anchor_level=g[0]
+            need_id=g[1]
+            ads_id=g[2]
+            lst.append({"anchor_level":anchor_level,"need_id":need_id,"ads_id":ads_id})
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+class NeedInfoSelectById(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id=self.get_argument("id",None)
+        if id is not None and id != "":
+            sql = "SELECT p.package_name,n.need_play_type,n. ENABLE,n.description," \
+                  "n.need_name FROM	ads_need_info n LEFT JOIN ads_contract_package_info p " \
+                  "ON n.package_id = p.package_id	where n.need_id=" + id
+
+            result = self.db_ads.execute(sql).fetchall()
+            lst = list()
+            for g in result:
+                package_name = g[0]
+                need_play_type = g[1]
+                enable = g[2]
+                description = g[3]
+                need_name = g[4]
+                lst.append({"package_name": package_name, "need_play_type": need_play_type, "enable": enable,
+                            "description":description,"need_name":need_name})
+            self.write_raw_json(lst)
+            self.db_ads.close()
+
+
+
+####---------------白名单---------------------------------
+class WhitelistInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/whitelist_info/whitelist_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        filter = args["filter"]
+        id = ''
+        if "search" in filter.keys():
+            id = filter["search"]
+        query = self.db_ads.query(AdsConfigAnchorWhitelist)
+        if id:
+            query = query.filter(AdsConfigAnchorWhitelist.id == id)
+        query_result = query.all()
+        total = query.count()
+        lst = list()
+        for item in query_result:
+            lst.append({
+
+                'id': item.id or 0,
+                'plat_id': item.plat_id or 0,
+                'room_id': item.room_id or '',
+                'ads_schedule_id_list': str(item.ads_schedule_id_list) or '',
+                'need_id_list': item.need_id_list or '',
+                'comment': item.comment or '',
+                'create_time': item.create_time.isoformat() or '',
+                'logtime': item.logtime.isoformat() or '',
+            })
+        # print(lst)
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = total
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class WhitelistAddInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        # id = self.get_argument("id", None)
+        plat_id = self.get_argument("plat_id", None)
+        room_id = self.get_argument("room_id", None)
+        ads_schedule_id_list = self.get_argument("ads_schedule_id_list", None)
+        need_id_list = self.get_argument("need_id_list", None)
+        comment = self.get_argument("comment", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            # id = args["id"]
+            plat_id = args["plat_id"]
+            room_id = args["room_id"]
+            ads_schedule_id_list = args["ads_schedule_id_list"]
+            need_id_list = args["need_id_list"]
+            comment = args["comment"]
+
+        try:
+            date_now = datetime.datetime.now()
+            item = AdsConfigAnchorWhitelist(plat_id=plat_id, room_id=room_id, ads_schedule_id_list=ads_schedule_id_list,
+                                            need_id_list=need_id_list,
+                                            comment=comment,
+                                            logtime=date_now, create_time=date_now
+                                            )
+            self.db_ads.add(item)
+            self.db_ads.commit()
+
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class WhitelistDelInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(AdsConfigAnchorWhitelist).filter(AdsConfigAnchorWhitelist.id.in_(ids)).delete(
+                    synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+class WhitelistEdInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        id = self.get_argument("id", None)
+        plat_id = self.get_argument("plat_id", None)
+        room_id = self.get_argument("room_id", None)
+        ads_schedule_id_list = self.get_argument("ads_schedule_id_list", None)
+        need_id_list = self.get_argument("need_id_list", None)
+        comment = self.get_argument("comment", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            id = args["id"]
+            plat_id = args["plat_id"]
+            room_id = args["room_id"]
+            ads_schedule_id_list = args["ads_schedule_id_list"]
+            need_id_list = args["need_id_list"]
+            comment = args["comment"]
+
+        try:
+            date_now = datetime.datetime.now()
+            self.db_ads.query(AdsConfigAnchorWhitelist).filter(AdsConfigAnchorWhitelist.id == id).update(
+                {AdsConfigAnchorWhitelist.plat_id: plat_id, AdsConfigAnchorWhitelist.room_id: room_id,
+                 AdsConfigAnchorWhitelist.ads_schedule_id_list: ads_schedule_id_list,
+                 AdsConfigAnchorWhitelist.need_id_list: need_id_list,
+                 AdsConfigAnchorWhitelist.comment: comment,
+                 AdsConfigAnchorWhitelist.logtime: date_now})
+            # sql_session.update({AdsConfigAnchorWhitelist.eff_airtime: time_len})
+
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class seleteshchedule(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id = self.get_argument("id", None)
+        try:
+            lst = []
+            # print(id)
+            ads_list = ''
+            if id == '1':
+                ads_list = self.db_ads.query(NeedSchedule).filter(NeedSchedule.assign_flag == '0').all()
+            elif id == '0':
+                ads_list = self.db_ads.query(NeedSchedule).all()
+            # sql_session.update({AdsConfigAnchorWhitelist.eff_airtime: time_len})
+            for ptype in ads_list:
+                lst.append(json.loads(json.dumps(ptype, cls=AlchemyEncoder)))
+            self.write_raw_json(lst)
+            self.db_ads.close()
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "获取错误")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+####---------------黑名单---------------------------------
+class BlacklistInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/blacklist_info/blacklist_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        filter = args["filter"]
+        id = ''
+        if "search" in filter.keys():
+            id = filter["search"]
+        query = self.db_ads.query(AdsConfigAnchorBlacklist)
+        if id:
+            query = query.filter(AdsConfigAnchorBlacklist.id == id)
+        query_result = query.all()
+        total = query.count()
+        lst = list()
+        for item in query_result:
+            lst.append({
+                'id': item.id or 0,
+                'plat_id': item.plat_id or 0,
+                'room_id': item.room_id or '',
+                'ads_schedule_id_list': str(item.ads_schedule_id_list) or '',
+                'comment': item.comment or '',
+                'create_time': item.create_time.isoformat() or '',
+                'logtime': item.logtime.isoformat() or '',
+            })
+        # print(lst)
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = total
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class BlacklistAddInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        # id = self.get_argument("id", None)
+        plat_id = self.get_argument("plat_id", None)
+        room_id = self.get_argument("room_id", None)
+        ads_schedule_id_list = self.get_argument("ads_schedule_id_list", None)
+        comment = self.get_argument("comment", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            # id = args["id"]
+            plat_id = args["plat_id"]
+            room_id = args["room_id"]
+            ads_schedule_id_list = args["ads_schedule_id_list"]
+            comment = args["comment"]
+
+        try:
+            date_now = datetime.datetime.now()
+            item = AdsConfigAnchorBlacklist(plat_id=plat_id, room_id=room_id, ads_schedule_id_list=ads_schedule_id_list,
+                                            comment=str(comment),
+                                            logtime=date_now, create_time=date_now
+                                            )
+            self.db_ads.add(item)
+            self.db_ads.commit()
+
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class BlacklistDelInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(AdsConfigAnchorBlacklist).filter(AdsConfigAnchorBlacklist.id.in_(ids)).delete(
+                    synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+class BlicklistEdInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        id = self.get_argument("id", None)
+        plat_id = self.get_argument("plat_id", None)
+        room_id = self.get_argument("room_id", None)
+        ads_schedule_id_list = self.get_argument("ads_schedule_id_list", None)
+        comment = self.get_argument("comment", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            id = args["id"]
+            plat_id = args["plat_id"]
+            room_id = args["room_id"]
+            ads_schedule_id_list = args["ads_schedule_id_list"]
+            comment = args["comment"]
+
+        try:
+            date_now = datetime.datetime.now()
+            self.db_ads.query(AdsConfigAnchorBlacklist).filter(AdsConfigAnchorBlacklist.id == id).update(
+                {AdsConfigAnchorBlacklist.plat_id: plat_id, AdsConfigAnchorBlacklist.room_id: room_id,
+                 AdsConfigAnchorBlacklist.ads_schedule_id_list: ads_schedule_id_list,
+                 AdsConfigAnchorBlacklist.comment: str(comment),
+                 AdsConfigAnchorBlacklist.logtime: date_now})
+            # sql_session.update({AdsConfigAnchorWhitelist.eff_airtime: time_len})
+
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()

@@ -1,0 +1,443 @@
+var v_dlg = null;
+var icom_dupdate = '';
+var plat_list = '';
+var create_table_filter_shch_list = null;
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#identitypersonallist-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='identitypersonallist-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/identitypersonal/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: "身份ID", key: "identity_id", width: 10
+            },
+            {title: "用户ID", key: "user_id", width: 10},
+            {
+                title: "姓名", key: "id_user_name", width: 10
+            },
+            {
+                title: "身份证号", key: "id_number", width: 10
+            },
+            {title: "银行名称", key: "bank_name", width: 10},
+            {title: "银行卡号", key: "bank_card_number", width: 10},
+            {title: "持卡人姓名", key: "hold_user_name", width: 10},
+            {title: "开户行所在分行，支行", key: "bank_sub_name", width: 10},
+            {
+                title: "身份证正面", key: "id_img_front", width: 10, render: 'front_with',
+                fields: {id_img_front: 'id_img_front'}
+            },
+            {
+                title: "身份证背面", key: "id_img_back", width: 10, render: 'back_with',
+                fields: {id_img_back: 'id_img_back'}
+            },
+            {title: "QQ号", key: "qq_number", width: 10},
+            {
+                title: "审核状态", key: "verify_status_name", width: 10, render: 'format_task_result',
+                fields: {anchor_balance: 'verify_status_name', union_balance: "verify_status_name"}
+            },
+            {
+                title: "信息状态", key: "status_name", width: 10, render: 'format_task_status',
+                fields: {anchor_balance: 'status_name', union_balance: "status_name"}
+            },
+            {
+                title: "创建时间", key: "logtime", width: 10, render: 'format_time', sort: true,
+                fields: {logtime: 'logtime'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+    };
+
+    var host_table = ywl.create_table(host_table_options);
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    // new_element = document.createElement("script");
+    // new_element.setAttribute("type", "text/javascript");
+    // new_element.setAttribute("src", "toc_common.js");
+    // document.body.appendChild(new_element);
+    // var date_now = new Date().toLocaleDateString();
+    // date_now = getDate();
+    document.getElementById("date").value = "" + getDate() + "";
+
+
+
+
+    $("#btn-add-host").click(function () {
+        v_dlg.create_show();
+    });
+
+    $(dom_id + " [ywl-filter='select']").click(function () {
+        host_table.load_data(cb_stack, {})
+
+    });
+    ywl.create_table_filter_verify_status_list(host_table, dom_id + " [ywl-filter='verify_status']");
+    ywl.create_table_filter_identity_status_list(host_table, dom_id + " [ywl-filter='identity_status']");
+
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='date']", "", "date");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='bank_name']", "", "bank_name");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='id_user_name']", "", "id_user_name");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='hold_user_name']", "", "hold_user_name");
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+
+}
+;
+
+function show_adsInfo(id) {
+    $.get("/needschedule/list_shchedule?id=" + id, function (ret) {
+        if (ret.code === 0) {
+            document.getElementById('schedule_id').innerHTML = ret.data.schedule_id;
+            document.getElementById('group_name').innerHTML = ret.data.group_name;
+            document.getElementById('count').innerHTML = ret.data.count;
+            document.getElementById('anchor_if_exp').innerHTML = ret.data.anchor_if_exp;
+            document.getElementById('lv_priority').innerHTML = ret.data.lv_priority;
+            document.getElementById('logtime').innerHTML = ret.data.logtime;
+
+            $("#dialog-scheduleinfo-info").modal();
+
+        } else if (ret.code === -1) {
+            ywl.notify_error('' + ret.message);
+        }
+
+    })
+}
+
+
+function showDetail(that) {
+    if ($(that).attr("value") && $(that).attr("value") != "null" && $(that).attr("value") != "" && $(that).attr("value") != "None") {
+        var arr = $(that).attr("value").split(",");
+        var node = '';
+        for (r in arr) {
+
+            node += '<a href=' + arr[r].replace("pic.hub520.com", "pic.xiaohulu.com") + ' target="_blank">' + arr[r].replace("pic.hub520.com", "pic.xiaohulu.com") + '</a>' + "<br/>";
+        }
+        $("#shot_path").empty();
+        $("#shot_path").html(node);
+        $("#dialog-playdetail-info").modal();
+
+    } else {
+        alert("该播放记录暂无截图信息");
+    }
+
+}
+
+
+function show_taskInfo(id) {
+    $.get("/taskselectlist/play_log?task_id=" + id, function (ret) {
+        if (ret.code === 0) {
+            $("#taskplayloginfo tbody").html("");
+            for (var i = 0; i < ret.data.length; i++) {
+                $("#taskplayloginfo").append("<tr><td>" + ret.data[i].play_id + "</td><td>" + ret.data[i].user_id + "</td><td>" + ret.data[i].status + "</td><td>" + ret.data[i].popularity + "</td><td><a href='javascript:void(0)' onclick='showDetail(this)' class='btn btn-sm btn-primary' value=" + ret.data[i].screen_shot_path + ">查看截图</a></td><td>" + ret.data[i].verify_status + "</td><td>" + ret.data[i].verify_result + "</td><td>" + ret.data[i].income + "</td><td>" + ret.data[i].log_create_time + "</td><tr>")
+            }
+
+            $("#dialog-taskplayloginfo-info").modal();
+
+        } else if (ret.code === -1) {
+            ywl.notify_error('' + ret.message);
+        }
+
+    })
+}
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+        render.format_ads = function (row_id, fields) {
+            var temp = [];
+            if (fields.ads_schedule_id_list) {
+                var arr = fields.ads_schedule_id_list;
+                temp.push('<a href="javascript:void(0)" onclick="show_adsInfo(' + arr + ')">【' + arr + '】</a>')
+
+            }
+            return temp.join("  ");
+        };
+
+        render.format_task = function (row_id, fields) {
+            var temp = [];
+            if (fields.id) {
+                var arr = fields.id;
+                temp.push('<a href="javascript:void(0)" onclick="show_taskInfo(' + arr + ')">【' + arr + '】</a>')
+
+            }
+            return temp.join("  ");
+        };
+
+        render.format_task_result = function (row_id, fields) {
+            var temp = '未处理'
+            if (fields.union_balance === '已审核') {
+                temp = '<span class="badge badge-success mono">已审核</span>'
+            } else if (fields.union_balance === '未审核') {
+                temp = '<span class="badge badge-danger mono">未审核</span>'
+            }
+            return '<label style="color: red">' + temp + '</label>'
+        };
+
+        render.format_task_status = function (row_id, fields) {
+            var temp = '未处理'
+            if (fields.union_balance === '删除') {
+                temp = '<span class="badge badge-danger mono">删除</span>'
+            } else if (fields.union_balance === '正常') {
+                temp = '<span class="badge badge-success mono">正常</span>'
+            }
+            return '<label style="color: red">' + temp + '</label>'
+        };
+
+        render.front_with = function (row_id, fields) {
+            var temp = []
+            if (fields.id_img_front) {
+                var arr = fields.id_img_front;
+                // alert(arr)
+                temp.push('<a href=' + arr + ' target=_blank>正面证件照</a>')
+            }
+            return temp.join("  ");
+        };
+
+        render.back_with = function (row_id, fields) {
+            var temp = []
+            if (fields.id_img_back) {
+                var arr = fields.id_img_back;
+                // alert(arr)
+                temp.push('<a href=' + arr + ' target=_blank>背面证件照</a>')
+            }
+            return temp.join("  ");
+        };
+
+
+        render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T", " ") + ' </span>';
+        };
+    };
+};
+
+ywl.create_table_filter_search_box = function (tbl, selector, on_created, filter_name) {
+    var _tblf_sb = {};
+    // 此过滤器绑定的DOM对象，用于JQuery的选择器
+    _tblf_sb.selector = selector;
+
+    // 此过滤器绑定的表格控件
+    _tblf_sb._table_ctrl = tbl;
+    _tblf_sb._table_ctrl.append_filter_ctrl(_tblf_sb);
+
+    // 过滤器内容
+    _tblf_sb.filter_name = filter_name;
+    _tblf_sb.filter_default = '';
+
+    _tblf_sb.get_filter = function () {
+        var _val = $(_tblf_sb.selector + " input").val();
+        var _ret = {};
+        _ret[_tblf_sb.filter_name] = _val;
+        return _ret;
+    };
+
+
+    _tblf_sb.init = function (cb_stack, cb_args) {
+        // 绑定搜索按钮点击事件
+        // $(_tblf_sb.selector + " button").click(function () {
+        // 	_tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+        // });
+        // 绑定搜索输入框中按下回车键
+        $(_tblf_sb.selector + " input").keydown(function (event) {
+            if (event.which == 13) {
+                _tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+            }
+        });
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_sb);
+        }
+
+        cb_stack.exec();
+    };
+
+    return _tblf_sb;
+};
+
+
+ywl.create_table_filter_verify_status_list = function (tbl, selector, on_created) {
+    var _tblf_st = {};
+
+    // 此表格绑定的DOM对象的ID，用于JQuery的选择器
+    _tblf_st.selector = selector;
+    // 此过滤器绑定的表格控件
+    _tblf_st._table_ctrl = tbl;
+    _tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+    // 过滤器内容
+    _tblf_st.filter_name = 'verify_status';
+    _tblf_st.filter_default = '';
+    _tblf_st.filter_value = '';
+
+    _tblf_st.get_filter = function () {
+        var _ret = {};
+        _ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+        // _ret["package_id"] = $("#package_id").val();
+        return _ret;
+    };
+
+    _tblf_st.reset = function (cb_stack, cb_args) {
+        if (_tblf_st.filter_value == _tblf_st.filter_default) {
+            cb_stack.exec();
+            return;
+        }
+
+        cb_stack
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = _tblf_st.filter_default;
+                $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+                cb_stack.exec();
+            });
+    };
+    _tblf_st.init = function (cb_stack) {
+        var node = '';
+        var user_list = ywl.page_options.user_list;
+        node += '<li><a href="javascript:;" ywl-income-from="">所有</a></li>';
+        node += '<li role="separator" class="divider"></li>';
+        // node += '<li><a href="javascript:;" ywl-income-from="' + 0 + '"> 未处理 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 1 + '">已审核 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 2 + '">未审核 </a></li>'
+
+        _tblf_st.filter_value = _tblf_st.filter_default;
+        $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+        $(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('所有');
+
+        // 点击事件绑定
+        $(_tblf_st.selector + ' ul [ywl-income-from]').click(_tblf_st._on_select);
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_st);
+        }
+
+        cb_stack.exec();
+    };
+
+    _tblf_st._on_select = function () {
+        var income_from = $(this).attr("ywl-income-from");
+        // icom_dupdate = income_from;
+
+        var income_from_html = $(this).html();
+
+        var cb_stack = CALLBACK_STACK.create();
+        cb_stack
+            .add(_tblf_st._table_ctrl.load_data)
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = income_from;
+                $(_tblf_st.selector + ' button span:first').html(income_from_html);
+                // cb_stack.exec();
+            });
+        cb_stack.exec();
+    };
+
+    return _tblf_st;
+};
+
+ywl.create_table_filter_identity_status_list = function (tbl, selector, on_created) {
+    var _tblf_st = {};
+
+    // 此表格绑定的DOM对象的ID，用于JQuery的选择器
+    _tblf_st.selector = selector;
+    // 此过滤器绑定的表格控件
+    _tblf_st._table_ctrl = tbl;
+    _tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+    // 过滤器内容
+    _tblf_st.filter_name = 'identity_status';
+    _tblf_st.filter_default = '';
+    _tblf_st.filter_value = '';
+
+    _tblf_st.get_filter = function () {
+        var _ret = {};
+        _ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+        // _ret["package_id"] = $("#package_id").val();
+        return _ret;
+    };
+
+    _tblf_st.reset = function (cb_stack, cb_args) {
+        if (_tblf_st.filter_value == _tblf_st.filter_default) {
+            cb_stack.exec();
+            return;
+        }
+
+        cb_stack
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = _tblf_st.filter_default;
+                $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+                cb_stack.exec();
+            });
+    };
+    _tblf_st.init = function (cb_stack) {
+        var node = '';
+        var user_list = ywl.page_options.user_list;
+        node += '<li><a href="javascript:;" ywl-income-from="">所有</a></li>';
+        node += '<li role="separator" class="divider"></li>';
+        // node += '<li><a href="javascript:;" ywl-income-from="' + 0 + '"> 未处理 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 1 + '">正常 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 0 + '">删除 </a></li>'
+        _tblf_st.filter_value = _tblf_st.filter_default;
+        $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+        $(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('所有');
+
+        // 点击事件绑定
+        $(_tblf_st.selector + ' ul [ywl-income-from]').click(_tblf_st._on_select);
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_st);
+        }
+
+        cb_stack.exec();
+    };
+
+    _tblf_st._on_select = function () {
+        var income_from = $(this).attr("ywl-income-from");
+        // icom_dupdate = income_from;
+
+        var income_from_html = $(this).html();
+
+        var cb_stack = CALLBACK_STACK.create();
+        cb_stack
+            .add(_tblf_st._table_ctrl.load_data)
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = income_from;
+                $(_tblf_st.selector + ' button span:first').html(income_from_html);
+                // cb_stack.exec();
+            });
+        cb_stack.exec();
+    };
+
+    return _tblf_st;
+};
+

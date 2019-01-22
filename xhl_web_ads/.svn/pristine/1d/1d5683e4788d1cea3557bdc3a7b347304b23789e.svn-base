@@ -1,0 +1,394 @@
+var v_dlg = null
+
+function show_adsInfo(id) {
+    $.get("/contract_package_info/list?id=" + id, function (ret) {
+        if (ret.code === 0) {
+            document.getElementById('package_name').innerHTML = ret.data.package_name;
+            document.getElementById('package_price').innerHTML = ret.data.package_price;
+            document.getElementById('begin_time').innerHTML = ret.data.begin_time;
+            document.getElementById('end_time').innerHTML = ret.data.end_time;
+            document.getElementById('anchor_count').innerHTML = ret.data.anchor_count;
+            document.getElementById('anchor_play_count').innerHTML = ret.data.anchor_play_count;
+            document.getElementById('S').innerHTML = ret.data.S;
+            document.getElementById('A').innerHTML = ret.data.A;
+            document.getElementById('B').innerHTML = ret.data.B;
+            document.getElementById('C').innerHTML = ret.data.C;
+            document.getElementById('D').innerHTML = ret.data.D;
+            $("#dialog-contractidinfo-info").modal();
+
+        } else if (ret.code === -1)
+        {
+            ywl.notify_error('没有对应的套餐数据！' + ret.message);
+        }
+
+        // $('#package_id').val(ret.package_id);
+        // $('#package_name').val(ret.package_name);
+        // $('#contract_id').val(ret.contract_id);
+        // $('#').val(ret.package_price);
+        // var url = 'http://download.xiaohulu.com/obs/adsdownload/' + ret.ads_id + "/" + ret.ads_thumbnailurl
+        // var movieurl = 'http://download.xiaohulu.com/obs/adsdownload/' + ret.ads_id + "/" + ret.ads_materialurl
+        // $('#downMovieBt').attr("url", movieurl);
+        // $('#ads_thumbnailurl').attr("src", url);
+        // $("#preview").attr("src", "");
+
+
+    })
+}
+
+function downloadMovie(that) {
+    var url = $(that).attr("url");
+    if (url) {
+        window.open(url);
+    } else {
+        alert("没有视频文件");
+    }
+}
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#contractinfo-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='contractinfo-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/contractinfo/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'contract_id'}
+            },
+            {
+                title: "合同ID", key: "contract_id", width: 30, render: 'format_ads',
+                fields: {contract_id: 'contract_id'}
+            },
+            {title: "合同名称", key: "contract_name", width: 50},
+            {title: "合同价格", key: "contract_price", width: 10},
+            {title: "广告主ID", key: "adsver_id", width: 10},
+            {
+                title: "广告简介",
+                key: "contract_desc",
+                width: 10,
+                fields: {ads_id: "contract_id"}
+            },
+            {
+                title: "创建时间", key: "create_time", width: 180, render: 'format_time', sort: true,
+                fields: {logtime: 'create_time'}
+            },
+            // {title: "create_time", key: "create_time",width: 10},
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'contract_id', protocol: 'contract_id'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+    var host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    // //初始化素材下拉框
+    // $.get("/adsinfo/select", function (ret) {
+    //         var auxArr = [];
+    //         $.each(ret, function (k, v) {
+    //             auxArr[k] = "<option value='" + v["ads_id"] + "'>" + v["ads_name"] + "</option>";
+    //         });
+    //         $('#ads_id1').append(auxArr.join(''));
+    //         $('#ads_id2').append(auxArr.join(''));
+    //         $('#ads_id3').append(auxArr.join(''));
+    //         $('#ads_id4').append(auxArr.join(''));
+    //     }
+    // );
+    //
+    // $.get("/packinfo/select", function (ret) {
+    //         var auxArr = [];
+    //         $.each(ret, function (k, v) {
+    //             auxArr[k] = "<option value='" + v["package_id"] + "'>" + v["package_name"] + "</option>";
+    //         });
+    //         $('#package_id').append(auxArr.join(''));
+    //
+    //     }
+    // );
+
+    $("#btn-delete-host").click(function () {
+        var ids = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                ids.push(_row_data.contract_id);
+            }
+        });
+
+        if (ids.length === 0) {
+            ywl.notify_error('请选择要批量删除的合同！');
+            return;
+        }
+
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/contractinfo/delete', {ids: ids}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('删除合同成功！');
+                    } else {
+                        ywl.notify_error('删除合同失败！' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，删除合同失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要删除选定的合同吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+    v_dlg = ywl.create_contractioninfo_infodlg(host_table);
+
+    $("#btn-add-host").click(function () {
+        v_dlg.create_show();
+    })
+
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='search']");
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+ywl.create_contractioninfo_infodlg = function (tbl) {
+    var contractioninfo_infodlg = {};
+    contractioninfo_infodlg.dom_id = "#dialog-contractinfo-info";
+    contractioninfo_infodlg.update = 1;
+    contractioninfo_infodlg.tbl = tbl;
+
+    contractioninfo_infodlg.contract_name = '';
+    contractioninfo_infodlg.contract_desc = '';
+    contractioninfo_infodlg.contract_id = 0;
+    contractioninfo_infodlg.contract_price = 0;
+    contractioninfo_infodlg.adsver_id = 0;
+
+    contractioninfo_infodlg.update_show = function (contract_id, contract_name, contract_price, adsver_id, contract_desc) {
+        contractioninfo_infodlg.update = 1;
+        contractioninfo_infodlg.init(contract_id, contract_name, contract_price, adsver_id, contract_desc);
+        $('#dlg-notice').hide();
+        $(contractioninfo_infodlg.dom_id).modal();
+    };
+
+    contractioninfo_infodlg.create_show = function () {
+        contractioninfo_infodlg.update = 0;
+        contractioninfo_infodlg.init('', '', 0, 0);
+        $('#dlg-notice').show();
+        $(contractioninfo_infodlg.dom_id).modal();
+    };
+
+    contractioninfo_infodlg.hide = function () {
+        $(contractioninfo_infodlg.dom_id).modal('hide');
+    };
+
+    contractioninfo_infodlg.init = function (contract_id, contract_name, contract_price, adsver_id, contract_desc) {
+        contractioninfo_infodlg.contract_id = contract_id;
+        contractioninfo_infodlg.contract_name = contract_name;
+        contractioninfo_infodlg.contract_price = contract_price;
+        contractioninfo_infodlg.adsver_id = adsver_id;
+        contractioninfo_infodlg.contract_desc = contract_desc;
+        contractioninfo_infodlg.init_dlg();
+    };
+    contractioninfo_infodlg.init_dlg = function () {
+        $(contractioninfo_infodlg.dom_id + ' #contract_id').val(contractioninfo_infodlg.contract_id);
+        $(contractioninfo_infodlg.dom_id + ' #contract_name').val(contractioninfo_infodlg.contract_name);
+        $(contractioninfo_infodlg.dom_id + ' #contract_price').val(contractioninfo_infodlg.contract_price);
+        $(contractioninfo_infodlg.dom_id + ' #adsver_id').val(contractioninfo_infodlg.adsver_id);
+        $(contractioninfo_infodlg.dom_id + ' #contract_desc').val(contractioninfo_infodlg.contract_desc);
+    };
+
+    contractioninfo_infodlg.check_args = function () {
+        var adsver_id = $(contractioninfo_infodlg.dom_id + ' #adsver_id').val();
+        var contract_price = $(contractioninfo_infodlg.dom_id + ' #contract_price').val();
+        var contract_name = $(contractioninfo_infodlg.dom_id + ' #contract_name').val();
+        var contract_desc = $(contractioninfo_infodlg.dom_id + ' #contract_desc').val();
+        if (!adsver_id || adsver_id == "") {
+            alert("类型编号不能为空")
+            return
+        }
+        if (!contract_name || contract_name == "") {
+            alert("类型名称不能为空")
+            return
+        }
+
+        contractioninfo_infodlg.adsver_id = adsver_id
+        contractioninfo_infodlg.contract_price = contract_price
+        contractioninfo_infodlg.contract_name = contract_name
+        contractioninfo_infodlg.contract_desc = contract_desc
+
+
+        return true;
+    };
+    contractioninfo_infodlg.post = function () {
+        if (contractioninfo_infodlg.update === 1) {
+
+            ywl.ajax_post_json('/contractinfo/edit', {
+                    contract_id: contractioninfo_infodlg.contract_id,
+                    contract_name: contractioninfo_infodlg.contract_name,
+                    contract_price: contractioninfo_infodlg.contract_price,
+                    adsver_id: contractioninfo_infodlg.adsver_id,
+                    contract_desc: contractioninfo_infodlg.contract_desc
+                },
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        contractioninfo_infodlg.tbl.reload();
+                        ywl.notify_success('更新类型成功！');
+                        contractioninfo_infodlg.hide();
+                    } else {
+                        ywl.notify_error('更新类型失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，更新类型失败！');
+                }
+            );
+        } else {
+            ywl.ajax_post_json('/contractinfo/add', {
+                    // create_time: myDate.toLocaleTimeString(),
+                    contract_name: contractioninfo_infodlg.contract_name,
+                    contract_price: contractioninfo_infodlg.contract_price,
+                    adsver_id: contractioninfo_infodlg.adsver_id,
+                    contract_desc: contractioninfo_infodlg.contract_desc
+                },
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        contractioninfo_infodlg.tbl.reload();
+                        ywl.notify_success('添加类型成功！');
+                        contractioninfo_infodlg.hide();
+                    } else {
+                        ywl.notify_error('添加类型失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，添加类型失败！');
+                }
+            );
+
+        }
+        return true;
+    };
+    $(contractioninfo_infodlg.dom_id + " #btn-save").click(function () {
+        if (!contractioninfo_infodlg.check_args()) {
+            return;
+        }
+        contractioninfo_infodlg.post();
+    });
+    return contractioninfo_infodlg
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        } else if (col_key === "action") {
+            var row_data = tbl.get_row(row_id);
+
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+                v_dlg.update_show(row_data.contract_id, row_data.contract_name, row_data.contract_price, row_data.adsver_id, row_data.contract_desc)
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+
+            // if (fields.ret_code === 9999 && fields.cost_time > 0) {
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">修改</a>&nbsp');
+            // ret.push('<a href="javascript:;" class="btn btn-sm btn-success" protocol=' + fields.protocol + ' ywl-btn-delete="' + fields.ID + '">删除</a>&nbsp');
+            // }
+
+            return ret.join('');
+        };
+
+
+        render.format_ads = function (row_id, fields) {
+            var temp = []
+            if (fields.contract_id) {
+                var arr = fields.contract_id;
+                temp.push('<a href="javascript:void(0)" onclick="show_adsInfo(' + arr + ')">【' + arr + '】</a>')
+
+            }
+            return temp.join("  ");
+        };
+
+
+        render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T", " ") + ' </span>';
+        };
+
+
+    };
+};
+
+
+

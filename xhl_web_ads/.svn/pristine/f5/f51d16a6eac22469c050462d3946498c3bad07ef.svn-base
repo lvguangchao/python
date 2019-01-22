@@ -1,0 +1,54 @@
+# -*- coding: utf-8 -*-
+server_port = 8080
+server_worker = 1
+debug = True
+mysql_ip ='120.92.10.21'
+mysql_ip_guild ='120.92.210.222'
+mysql_port=3306
+mysql_user='xhl_guanggao'
+mysql_pass='p1B6Xf7R41Hny7Hd'
+dbname='xhl_toc'
+ads_dbname='xhl_anchor'
+ads_dbname_wealth='xhl_wealth'
+ads_dbname_guild='xhl_guild'
+
+file_host='120.92.35.91'
+file_port=22
+file_uname='guozhuo'
+file_pwd='ZQEZcvwYk7ZEEvns'
+file_remotePath='/work/www/html/download.xiaohulu.com/obs/adsdownload'
+file_url='http://download.xiaohulu.com/obs/adsdownload'
+
+
+mysql_ip2 ='120.92.10.21'
+mysql_port2=3306
+mysql_user2='xhl_guanggao'
+mysql_pass2='p1B6Xf7R41Hny7Hd'
+dbname2='xhl_toc'
+ads_dbname2='xhl_anchor'
+ads_dbname_wealth2='xhl_wealth'
+ads_dbname_guild2='xhl_guild'
+
+mysql_ip_detect ='113.107.166.14'
+mysql_port_detect=10006
+mysql_user_detect='guozhuo'
+mysql_pass_detect='3nhumzW9AZivzWQx'
+dbname_detect='ad_detect'
+
+mysql_ip_entourage ='58.253.70.70'
+mysql_port_entourage=10116
+mysql_user_entourage='minanqiang'
+mysql_pass_entourage='O6ZXPpeH5yQtjnpA'
+ads_dbname_entourage='xhl_anchor'
+
+mysql_ip_adm ='192.168.120.84'
+mysql_port_adm=3306
+mysql_user_adm='root'
+mysql_pass_adm='123456'
+ads_dbname_adm='xhl_ads_manager'
+
+mysql_ip_plat ='120.92.208.113'
+mysql_port_plat=3306
+mysql_user_plat='root'
+mysql_pass_plat='shAw41MvO'
+ads_dbname_plat='plat_balance'

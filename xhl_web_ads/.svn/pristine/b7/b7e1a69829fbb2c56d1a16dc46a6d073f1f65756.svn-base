@@ -1,0 +1,23 @@
+# -*- coding: utf-8 -*-
+server_port = 8080
+server_worker = 1
+debug = True
+mysql_ip ='192.168.120.84'
+mysql_port=3306
+mysql_user='root'
+mysql_pass='123456'
+dbname='xhl_toc'
+ads_dbname='xhl_anchor'
+ads_dbname_wealth='xhl_wealth'
+ads_dbname_guild='xhl_guild'
+
+file_host='120.92.35.91'
+file_port=22
+file_uname='guozhuo'
+file_pwd='ZQEZcvwYk7ZEEvns'
+file_remotePath='/work/www/html/download.xiaohulu.com/obs/adsdownload'
+file_url='http://download.xiaohulu.com/obs/adsdownload'
+
+
+
+

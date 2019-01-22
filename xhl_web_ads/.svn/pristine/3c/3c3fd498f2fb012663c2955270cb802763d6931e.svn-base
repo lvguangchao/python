@@ -1,0 +1,17 @@
+# -*- coding: utf-8 -*-
+server_port = 10003
+server_worker = 1
+debug = True
+mysql_ip ='192.168.120.84'
+mysql_port=3306
+mysql_user='root'
+mysql_pass='123456'
+dbname='xhl_toc'
+ads_dbname='xhl_anchor'
+
+file_host='120.92.94.109'
+file_port=22
+file_uname='heyun'
+file_pwd='U16qBgAxtfZnFU6qrdOQ'
+file_remotePath='/work/www/html/client02.xiaohulu.com/obs/otherupdate'
+file_url='http://client.xiaohulu.com/obs/otherupdate'

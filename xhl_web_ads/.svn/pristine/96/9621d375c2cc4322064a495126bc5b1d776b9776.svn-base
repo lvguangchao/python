@@ -1,0 +1,40 @@
+
+function cal_init(){
+    var options={
+          defaultDate: getDate(),
+          editable: false,
+          buttonIcons: false,
+          eventLimit: true,
+          // theme:true,
+          eventClick : function (event) {
+              var date=event.start.format();
+              window.open("/ads/cal/list?date="+date);
+
+          },
+          dayClick: function (date) {
+              console.log(date.format())
+              window.open("/ads/cal/list?date="+date.format());
+
+          },
+          events: function(start, end, timezone, callback) {
+              $.post('/ads/cal/select',{date:start.unix()} ,function (ret) {
+                  var event=[]
+                  $.each(ret,function(i,c) {
+                        var temp=c
+                        if (temp.color == '1') {
+                            temp.color='gray'
+                        } else if (temp.color == '2') {
+                            temp.color='red'
+                        } else if (temp.color == '3') {
+                            temp.color='green'
+                        }
+                        event.push(temp)
+                    });
+                  callback(event);
+              })
+
+          }
+      };
+
+      $('#calendar').fullCalendar(options);
+}

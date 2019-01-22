@@ -1,0 +1,196 @@
+<%!
+    page_title_ = 'group管理'
+    page_menu_ = ['ads', 'needgroupinfo']
+    page_id_ = 'needgroupinfo'
+%>
+<%inherit file="../../page_base.mako"/>
+<%block name="extend_js">
+    <script type="text/javascript" src="${ static_url('js/ads_manager/need_group/needgroupinfo.js') }"></script>
+    <link href="${ static_url('css/style.css') }" rel="stylesheet">
+</%block>
+<%block name="breadcrumb">
+    <ol class="breadcrumb">
+        <li><i class="fa fa-server fa-fw"></i> ${self.attr.page_title_}</li>
+    </ol>
+</%block>
+
+<div class="page-content">
+    <div class="box" id="needgroupinfo-list">
+        <!-- begin filter -->
+        <div class="page-filter">
+            <div class="" style="float:right;">
+                <a href="javascript:;" class="btn btn-sm btn-primary" ywl-filter="reload"><i class="fa fa-repeat fa-fw"></i> 刷新</a>
+            </div>
+
+            <div class="">
+                <div class="input-group input-group-sm" ywl-filter="search" style="display:inline-block;">
+                    <input type="text" class="form-control" placeholder="搜索 分组名称 " style="display:inline-block;">
+                    <span class="input-group-btn" style="display:inline-block;margin-left:-4px;"><button type="button" class="btn btn-default"><i class="fa fa-search fa-fw"></i></button></span>
+                </div>
+
+            </div>
+        </div>
+        <!-- end filter -->
+
+        <!-- begin table -->
+        <table class="table table-striped table-bordered table-hover table-data no-footer dtr-inline" toc-table="needgroupinfo-list"></table>
+        <!-- end table -->
+
+        <!-- begin page-nav -->
+        <div class="page-nav" ywl-paging="host-list">
+
+            <div class="input-group input-group-sm" style="display:inline-block;">
+                <a href="#" id="btn-add-host" class="btn btn-sm btn-primary"><i class="fa fa-plus-circle fa-fw"></i> 添加</a>
+                <a href="#" id="btn-delete-host" class="btn btn-sm btn-success"><i class="fa fa-plus-circle fa-fw"></i> 删除</a>
+            </div>
+
+
+            <div class="" style="float:right;">
+                <nav>
+                    <ul class="pagination pagination-sm"></ul>
+                </nav>
+            </div>
+
+            <div style="float:right;margin-right:30px;">
+                <div class="breadcrumb-container">
+                    <ol class="breadcrumb">
+                        <li><i class="fa fa-list fa-fw"></i> 记录总数 <strong ywl-field="recorder_total">0</strong></li>
+                        <li>页数 <strong><span ywl-field="page_current">1</span>/<span ywl-field="page_total">1</span></strong></li>
+                        <li>每页显示
+                            <label>
+                                <select></select>
+                            </label>
+                            条记录
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+        </div>
+        <!-- end page-nav -->
+    </div>
+</div>
+
+<%block name="extend_content">
+	<div class="modal fade" id="dialog-needgroupinfo-info" tabindex="-1" role="dialog">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title">编辑group信息</h3>
+				</div>
+                <div class="modal-body">
+                    <form enctype="multipart/form-data" id="needinfo-list-action">
+                        <input type="hidden" id="vtype_list_id">
+                        <div class="form-horizontal">
+                            <div class="form-group form-group-sm" id="vtype-div">
+                                <label for="group_name" class="col-sm-3 control-label"><strong>分组名称：</strong></label>
+                                <div class="col-sm-6">
+                                    <input id="group_name" type="text" class="form-control" placeholder="设置需求名称" maxlength="20"/>
+                                </div>
+                            </div>
+
+                            <div class="form-group form-group-sm">
+                                <label for="vtype_name" class="col-sm-3 control-label"><strong>分组级别：</strong></label>
+                                <div class="col-sm-6">
+                                    <select id="anchor_level" style="width: 138px;">
+                                        <option  value="" selected>请选择</option>
+                                        <option  value="S">S</option>
+                                        <option  value="A">A</option>
+                                        <option  value="B">B</option>
+                                        <option  value="C">C</option>
+                                        <option  value="D">D</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="group">
+                            <div class="form-group form-group-sm" id="vtype-div">
+                                <label for="package_id" class="col-sm-3 control-label"><strong>套餐：</strong></label>
+                                <div class="col-sm-6">
+                                    <select id="package_id" style="width: 138px;">
+                                        <option value="">请选择</option>
+                                    </select>
+                                </div>
+                            </div>
+                              <div class="form-group form-group-sm">
+                                <label for="vtype_name" class="col-sm-3 control-label"><strong>need_id1：</strong></label>
+                                <div class="col-sm-6">
+                                    <div class="btn-group"  aria-label="...">
+                                            <select id="need_id1" disabled="false">
+                                                <option value="">请选择</option>
+                                            </select>
+                                        <div class="btn-group">
+                                            <input type="checkbox" name="nd1" >
+                                        </div>
+                                        <button type="button" id="btneed_id1" value="1" style="color: white;background-color: #5cb85c;">apply</button>
+                                    </div>
+
+
+                                </div>
+                            </div>
+                            <div class="form-group form-group-sm">
+                                <label for="vtype_name" class="col-sm-3 control-label"><strong>need_id2：</strong></label>
+                                <div class="col-sm-6">
+                                    <div class="btn-group" aria-label="...">
+                                        <select id="need_id2" disabled="disabled">
+                                            <option value="">请选择</option>
+                                        </select>
+                                        <div class="btn-group">
+                                            <input type="checkbox" name="nd2" >
+                                        </div>
+                                        <button type="button" id="btneed_id2" style="color: white;background-color: #5cb85c;">apply</button>
+                                    </div>
+
+                                </div>
+                            </div>
+                                </div>
+
+
+                            <div class="form-group form-group-sm">
+                                <label for="anchor_alloc_type" class="col-sm-3 control-label"><strong>主播选择条件：</strong></label>
+                                <div class="col-sm-6">
+                                    <input name="anchor_alloc_type" type="radio" value="1" checked/>可以重复
+                                    <input name="anchor_alloc_type" type="radio" value="2" />不可重复
+                                </div>
+                            </div>
+                            <div class="form-group form-group-sm">
+                                <label for="comment" class="col-sm-3 control-label"><strong>描述：</strong></label>
+                                <div class="col-sm-6">
+                                    <textarea id="comment" style="height: 100px;width: 290px" type="text"
+                                              maxlength="200" class="form-control" placeholder="需求描述"></textarea>
+                                </div>
+                            </div>
+                            <div id="dlg-notice">
+                                <div class="form-group form-group-sm">
+                                    <div class="col-sm-3"></div>
+                                    <div class="col-sm-6">
+                                        注意，勾选中复选框为 <span class="mono h4">新增修改操作</span> <br/>
+                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                        &nbsp;&nbsp;&nbsp;&nbsp;
+                                        不勾中则为 <span class="mono h4">删除操作</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+				</div>
+
+				<div class="modal-footer">
+					<button type="button" class="btn btn-sm btn-primary" id="btn-save"><i class="fa fa-check fa-fw"></i> 确定</button>
+					<button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i class="fa fa-close fa-fw"></i> 取消</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+</%block>
+
+
+
+
+
+
+
+
+

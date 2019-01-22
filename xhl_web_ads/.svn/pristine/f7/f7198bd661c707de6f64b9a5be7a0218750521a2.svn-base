@@ -1,0 +1,524 @@
+var v_dlg=null
+var platformMap=null    //用来转换platform
+var get_v_select=null
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#pluginFileVersion-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='pluginFileVersion-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/pluginFileVersion/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {title: "ID", key: "id",width: 30},
+            {title: "文件ID", key: "file_id",width: 30},
+            {title: "插件名称", key: "name",width: 50},
+            {title: "版本号", key: "version",width: 10},
+            {title: "插件类型", key: "type_name",width: 10},
+            {title: "直播软件", key: "is_obs_stdio",width: 10},
+             {
+                title: "日志时间", key: "logtime", width: 180, render: 'format_time',
+                fields: {logtime: 'logtime'}
+            },
+
+            {
+                title: "操作",
+                key: "action",
+                width: 150,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'id', filex86: 'filex86',filex64:'filex64'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+
+
+
+     $.get("/pluginType/all", function (ret) {
+         var auxArr = [];
+         $.each(ret, function(k, v){
+                      auxArr[k] = "<option value='" + v["tpye_id"] + "'>" + v["name"] + "</option>";
+                });
+         $('#plugin_type').append(auxArr.join(''));
+        }
+     );
+
+
+    var host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    $("#btn-delete-host").click(function () {
+        var ids = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                ids.push(_row_data.id);
+            }
+        });
+
+        if (ids.length === 0) {
+            ywl.notify_error('请选择要删除的插件版本！');
+            return;
+        }
+
+
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/pluginFileVersion/delete', {id: ids}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('删除成功！');
+                    } else {
+                        ywl.notify_error('删除失败！'+ ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，删除失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要删除选定的插件版本吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+    v_dlg = ywl.create_pluginFileVersion_info_dlg(host_table);
+
+    $("#btn-add-host").click(function () {
+         v_dlg.create_show();
+    })
+
+
+     //初始化版本类型选择框
+     $.get("/pluginType/all", function (ret) {
+         var auxArr = [];
+         auxArr.push('<option value="">请选择</option>')
+
+         $.each(ret, function (k, v) {
+             if (v["name"] != null && v["name"] != "") {
+                 auxArr.push("<option value='" + v["tpye_id"] + "'>" + v["name"] + "</option>");
+             }
+         });
+
+         $('#plugin-type').append(auxArr.join(''));
+        }
+     );
+
+
+    get_v_select = function (type, cb) {
+
+        $("#plugin_file_id option").remove();
+        $.get("/pluginFile/select", {plugintype: type}, function (ret) {
+            var auxArr = [];
+            $.each(ret, function (k, v) {
+                if (v["name"] != null && v["name"] != "") {
+                    auxArr.push("<option value='" + v["file_id"] + "'>" + v["name"] + "</option>");
+                }
+            });
+            $('#plugin_file_id').append(auxArr.join(''));
+            cb && cb()
+        });
+    }
+
+    get_v_select()
+
+
+     $("#plugin-type").change(function () {
+         var type=$(this).children('option:selected').val();//这就是selected的值
+         get_v_select(type)
+     })
+
+
+
+  // $.ajax({
+  //       type: "get",
+  //       url: "/pluginPlatform/map",
+  //       cache: true,
+  //       success: function (ret) {
+  //               platformMap = ret
+  //
+  //       }
+  //   });
+
+    ywl.create_table_filter_user_list(host_table, dom_id + " [ywl-filter='obs-type']");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='search']");
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+ywl.create_pluginFileVersion_info_dlg = function (tbl) {
+    var pluginFileVersion_info_dlg = {};
+    pluginFileVersion_info_dlg.dom_id = "#dialog-pluginFileVersion-info";
+    pluginFileVersion_info_dlg.update = 1;
+    pluginFileVersion_info_dlg.tbl = tbl;
+    pluginFileVersion_info_dlg.version = '';
+    pluginFileVersion_info_dlg.plugin_file_id = '';
+    pluginFileVersion_info_dlg.type_name = '';
+    pluginFileVersion_info_dlg.row_id = 0;
+
+    pluginFileVersion_info_dlg.update_show = function (plugin_file_id, version,type_name, row_id) {
+        pluginFileVersion_info_dlg.update = 1;
+        pluginFileVersion_info_dlg.init(plugin_file_id, version, type_name,row_id);
+        $('#dlg-notice').hide();
+        $(pluginFileVersion_info_dlg.dom_id).modal();
+    };
+
+    pluginFileVersion_info_dlg.create_show = function () {
+        pluginFileVersion_info_dlg.update = 0;
+        pluginFileVersion_info_dlg.init('', '', '', 0);
+        $('#dlg-notice').show();
+        $(pluginFileVersion_info_dlg.dom_id).modal();
+    };
+
+    pluginFileVersion_info_dlg.hide = function () {
+        $(pluginFileVersion_info_dlg.dom_id).modal('hide');
+    };
+
+    pluginFileVersion_info_dlg.init = function (plugin_file_id, version,type_name, row_id) {
+        pluginFileVersion_info_dlg.plugin_file_id = plugin_file_id;
+        pluginFileVersion_info_dlg.version = version;
+        pluginFileVersion_info_dlg.type_name = type_name;
+        pluginFileVersion_info_dlg.row_id = row_id;
+        pluginFileVersion_info_dlg.init_dlg();
+    };
+    pluginFileVersion_info_dlg.init_dlg = function () {
+        $(pluginFileVersion_info_dlg.dom_id + ' #version').val(pluginFileVersion_info_dlg.version);
+
+        if (pluginFileVersion_info_dlg.update === 1) {
+             get_v_select("",function () {
+                 $(pluginFileVersion_info_dlg.dom_id + ' #plugin_file_id').val(pluginFileVersion_info_dlg.plugin_file_id);
+             });
+            $(pluginFileVersion_info_dlg.dom_id + ' #plugintype-div').hide();
+            $(pluginFileVersion_info_dlg.dom_id + ' #plugin_file_id').attr("disabled","true");
+        } else {
+             $(pluginFileVersion_info_dlg.dom_id + ' #plugin_file_id').removeAttr("disabled");
+             $(pluginFileVersion_info_dlg.dom_id + ' #plugintype-div').show();
+            $(pluginFileVersion_info_dlg.dom_id + ' #plugin_file_id').val(pluginFileVersion_info_dlg.plugin_file_id);
+
+        }
+        var obj = document.getElementById('file_name');
+        obj.outerHTML=obj.outerHTML
+
+    };
+
+    pluginFileVersion_info_dlg.check_args = function () {
+        var plugin_file_id=$(pluginFileVersion_info_dlg.dom_id + ' #plugin_file_id').val()
+        var version=$(pluginFileVersion_info_dlg.dom_id + ' #version').val();
+        if(!plugin_file_id||plugin_file_id==""){
+            alert("类型编号不能为空");
+            return
+        }
+        if(!version||version==""){
+            alert("版本号不能为空");
+            return
+        }
+        var file_name=$("#file_name").val()
+        if(!file_name||file_name==""){
+            alert("文件不能为空");
+            return
+        }
+
+        var index1 = file_name.lastIndexOf(".");
+        var index2 = file_name.length;
+        var suffix = file_name.substring(index1 + 1, index2);//后缀名
+
+        if(suffix!="zip"){
+            alert("必须为zip文件");
+            return
+        }
+
+         pluginFileVersion_info_dlg.version = version;
+         pluginFileVersion_info_dlg.plugin_file_id = plugin_file_id
+        return true;
+    };
+    pluginFileVersion_info_dlg.post = function () {
+           function progressHandlingFunction(e) {
+              var file_name=$("#file_name").val()
+              if (file_name && file_name != "") {
+                  if (e.lengthComputable) {
+                      $('#process_data1').attr({value: e.loaded, max: e.total}); //更新数据到进度条
+                      var percent = e.loaded / e.total * 100;
+                      $('#progress1').html(e.loaded + "/" + e.total + " bytes. " + percent.toFixed(2) + "%");
+                  }
+              }
+            }
+
+
+        if (pluginFileVersion_info_dlg.update === 1) {
+             //step-1  申请一个task,获取task_gen 标示 用于后续的文件上传
+            var t = null  //定时对象
+            var task_gen = null  //task编号
+            $.get("/get/task/gen", function (ret) {
+                    task_gen = ret.data
+                    var fileInput = $("#file_name")[0];
+                    if (fileInput && fileInput.files.length != 0) {
+                        byteSize = fileInput.files[0].size;
+                        //step-2  定时获取文件上传进度
+                        t = setInterval(function () {
+                            $.get("/get/task/process", {task_gen: task_gen}, function (ret) {
+                                    if (ret.code === TPE_OK) {
+                                        $('#process_data2').attr({value: ret.data, max: byteSize}); //更新数据到进度条
+                                        var percent = ret.data / byteSize * 100;
+                                        $('#progress2').html(ret.data + "/" + byteSize + " bytes. " + percent.toFixed(2) + "%");
+                                    } else {
+                                        ywl.notify_error('获取进度信息失败：' + ret.message);
+                                    }
+                                }
+                            );
+                        }, 200);
+                    }
+
+                    var fileObj = $("#file_name")[0].files[0];        //获取上传文件名称
+                    var file_id=$("#plugin_file_id").val()
+                    var version=$("#version").val()
+
+                    var form = new FormData();                  //创建表单对象
+                    form.append("file", fileObj);
+                    form.append("file_id", file_id);
+                    form.append("version", version);
+                    form.append("task_gen", task_gen);
+                    form.append("id", pluginFileVersion_info_dlg.row_id);
+                    $.ajax({
+                        type: 'POST',
+                        url: '/pluginFileVersion/update',
+                        data: form,                             //提交数据为表单对象
+                        processData: false,                     //默认为 true，数据被处理为 URL 编码格式。如果为 false，则阻止将传入的数据处理为 URL 编码的格式。
+                        contentType: false,                     //指 定 请 求 内 容 的 类 型
+                        success: function (ret) {
+                            clearInterval(t);                       //删除定时请求
+
+                            $(pluginFileVersion_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            if (ret.code === TPE_OK) {
+                                pluginFileVersion_info_dlg.tbl.reload();
+                                ywl.notify_success('修改成功！');
+                                // $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                // $('#progress1').html("0 bytes");
+                                // $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                                // $('#progress2').html("0 bytes");
+                                pluginFileVersion_info_dlg.hide();
+                            }
+                            else {
+                                ywl.notify_error('修改失败：' + ret.message);
+
+                            }
+                            $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress1').html("0 bytes");
+                            $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress2').html("0 bytes");
+                        },
+                        error: function (xhr, errorText, errorStatus) {  //如果发生错误，返回错误信息
+                            clearInterval(t);                       //删除定时请求
+                            $(pluginFileVersion_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress1').html("0 bytes");
+                            $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress2').html("0 bytes");
+                            ywl.notify_error('网络故障，修改失败！');
+                        },
+                        xhr: function () { //获取ajaxSettings中的xhr对象，为它的upload属性绑定progress事件的处理函数
+
+                            myXhr = $.ajaxSettings.xhr();
+                            if (myXhr.upload) { //检查upload属性是否存在
+                                //绑定progress事件的回调函数
+                                myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
+                            }
+                            return myXhr; //xhr对象返回给jQuery使用
+                        }
+
+                    })
+                }
+            );
+
+        }
+        return true;
+    };
+    $(pluginFileVersion_info_dlg.dom_id + " #btn-save").click(function () {
+        if (!pluginFileVersion_info_dlg.check_args()) {
+            return;
+        }
+        $(this).attr("disabled", true);
+
+        pluginFileVersion_info_dlg.post();
+    });
+    return pluginFileVersion_info_dlg
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        }else if (col_key==="action"){
+            var row_data = tbl.get_row(row_id);
+
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+                v_dlg.update_show(row_data.file_id,row_data.version,row_data.type_name,row_data.id)
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary"  ywl-btn-edit="' + fields.ID + '">修改</a>&nbsp');
+            if (fields.filex64 && fields.filex64 != "" && fields.filex64 != null) {
+                ret.push('<a href="http://192.168.120.84/obs/otherupdate/' + fields.filex64 + '" class="btn btn-sm btn-primary"  ywl-btn-download="' + fields.ID + '">下载x64</a>&nbsp');
+            }
+            if (fields.filex64 && fields.filex64 != "" && fields.filex64 != null) {
+                ret.push('<a href="http://192.168.120.84/obs/otherupdate/' + fields.filex86 + '" class="btn btn-sm btn-primary"  ywl-btn-download="' + fields.ID + '">下载x86</a>&nbsp');
+            }
+            return ret.join('');
+        }
+
+        render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T"," ") + ' </span>';
+        };
+
+    };
+};
+
+ywl.create_table_filter_user_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'obs-type';
+	_tblf_st.filter_default = '全部';
+	_tblf_st.filter_value = '';
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-user-id="2">全部</a></li>';
+		node += '<li><a href="javascript:;" ywl-user-id="0">obs</a></li>';
+		node += '<li><a href="javascript:;" ywl-user-id="1">obs-stdio</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		$.each(user_list, function (i, g) {
+			node += '<li><a href="javascript:;" ywl-user-id="' + g.user_id + '">' + g.user_name + '</a></li>';
+		});
+
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-user-id]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var user_name = $(this).html();
+
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(_tblf_st._table_ctrl.load_data)
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = user_name;
+				$(_tblf_st.selector + ' button span:first').html(user_name);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+

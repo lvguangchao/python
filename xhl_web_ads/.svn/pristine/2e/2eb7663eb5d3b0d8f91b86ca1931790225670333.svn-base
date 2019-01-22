@@ -1,0 +1,467 @@
+var v_dlg=null
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#versionlist-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='version-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/versionlist/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {title: "ID", key: "id",width: 30},
+            {title: "版本号", key: "version",width: 50},
+            {
+                title: "类型", key: "vtypeName", width: 10,
+                render: 'v_type',
+                fields: {vtypeName: 'vtypeName',  vtype: 'vtype'}
+            },
+            {title: "下载路径", key: "download_url",width: 180},
+            {title: "md5", key: "md5",width: 180},
+            {title: "文件大小(Byte)", key: "file_size",width: 180,render:'format_size',fields:{file_size:"file_size"}},
+            {
+                title: "日志时间", key: "logtime", width: 180, render: 'format_time',
+                fields: {logtime: 'logtime'}
+            },
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'id',  protocol: 'user_id'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+    var host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    $("#btn-delete-host").click(function () {
+        var version_list = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                version_list.push(_row_data.id);
+            }
+        });
+
+        if (version_list.length === 0) {
+            ywl.notify_error('请选择要批量删除的版本！');
+            return;
+        }
+
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/versionlist/delete', {version_list: version_list}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('删除版本成功！');
+                    } else {
+                        ywl.notify_error('删除版本失败！'+ ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，删除版本失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要删除选定的版本吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+      //初始化版本类型选择框
+     $.get("/vtype/list4all", function (ret) {
+         var auxArr = [];
+         $.each(ret, function(k, v){
+                      auxArr[k] = "<option value='" + v["vtype_code"] + "'>" + v["vtype_name"] + "</option>";
+                });
+         $('#vtype').append(auxArr.join(''));
+        }
+     );
+
+    
+    v_dlg = ywl.create_vlist_info_dlg(host_table);
+
+    $("#btn-add-host").click(function () {
+         v_dlg.create_show();
+    })
+
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+ywl.create_vlist_info_dlg = function (tbl) {
+    var vlist_info_dlg = {};
+    vlist_info_dlg.dom_id = "#dialog-versionlist-info";
+    vlist_info_dlg.update = 1;
+    vlist_info_dlg.tbl = tbl;
+    vlist_info_dlg.version = '';
+    vlist_info_dlg.vtype = 0;
+    vlist_info_dlg.row_id = 0;
+
+    vlist_info_dlg.update_show = function (version, vtype, row_id) {
+        vlist_info_dlg.update = 1;
+        vlist_info_dlg.init(version, vtype, row_id);
+        $('#dlg-notice').hide();
+        $(vlist_info_dlg.dom_id).modal();
+    };
+
+    vlist_info_dlg.create_show = function () {
+        vlist_info_dlg.update = 0;
+        vlist_info_dlg.init('', '', 0, 0);
+        $('#dlg-notice').show();
+
+
+        $(vlist_info_dlg.dom_id).modal();
+    };
+
+    vlist_info_dlg.hide = function () {
+        $(vlist_info_dlg.dom_id).modal('hide');
+    };
+
+    vlist_info_dlg.init = function (version, vtype, row_id) {
+        vlist_info_dlg.version = version;
+        vlist_info_dlg.vtype = vtype;
+        vlist_info_dlg.row_id = row_id;
+        vlist_info_dlg.init_dlg();
+    };
+    vlist_info_dlg.init_dlg = function () {
+        $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+        $('#progress1').html("0 bytes");
+        $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+        $('#progress2').html("0 bytes");
+
+        $(vlist_info_dlg.dom_id + ' #download_url').val("");
+        $(vlist_info_dlg.dom_id + ' #version').val(vlist_info_dlg.version);
+        $(vlist_info_dlg.dom_id + ' #vtype').val(vlist_info_dlg.vtype);
+        $(vlist_info_dlg.dom_id + ' #version_list_id').val(vlist_info_dlg.row_id);
+        if (vlist_info_dlg.update === 1) {
+            $(vlist_info_dlg.dom_id + ' #version').attr("disabled", "true");
+            $(vlist_info_dlg.dom_id + ' #version-div').show();
+        } else {
+            $(vlist_info_dlg.dom_id + ' #version').prop("disabled", "false");
+            $(vlist_info_dlg.dom_id + ' #version-div').hide();
+
+        }
+
+    };
+
+    vlist_info_dlg.check_args = function () {
+        var vtype=$("#vtype").val()
+        if (!vtype ||vtype==""){
+            alert("请选择版本类型")
+            return false;
+        }
+          return true;
+    };
+    vlist_info_dlg.post = function () {
+          function progressHandlingFunction(e) {
+              var download_url=$("#download_url").val()
+              if (download_url && download_url != "") {
+                  if (e.lengthComputable) {
+                      $('#process_data1').attr({value: e.loaded, max: e.total}); //更新数据到进度条
+                      var percent = e.loaded / e.total * 100;
+                      $('#progress1').html(e.loaded + "/" + e.total + " bytes. " + percent.toFixed(2) + "%");
+                  }
+              }
+            }
+
+        if (vlist_info_dlg.update === 1) {
+
+            //step-1  申请一个task,获取task_gen 标示 用于后续的文件上传
+            var t = null  //定时对象
+            var task_gen = null  //task编号
+            $.get("/get/task/gen", function (ret) {
+                    task_gen = ret.data
+                    var fileInput = $("#download_url")[0];
+                    if (fileInput && fileInput.files.length != 0) {
+                        byteSize = fileInput.files[0].size;
+                        //step-2  定时获取文件上传进度
+                        t = setInterval(function () {
+                            $.get("/get/task/process", {task_gen: task_gen}, function (ret) {
+                                    if (ret.code === TPE_OK) {
+                                        $('#process_data2').attr({value: ret.data, max: byteSize}); //更新数据到进度条
+                                        var percent = ret.data / byteSize * 100;
+                                        $('#progress2').html(ret.data + "/" + byteSize + " bytes. " + percent.toFixed(2) + "%");
+                                    } else {
+                                        ywl.notify_error('获取进度信息失败：' + ret.message);
+                                    }
+                                }
+                            );
+                        }, 200);
+                    }
+
+                    var fileObj = $("#download_url")[0].files[0];        //获取上传文件名称
+                    var form = new FormData();                  //创建表单对象
+                    var vtype = $("#vtype").val()
+                    var v_id = $("#version_list_id").val()
+                    var vtype_name=$("#vtype").find("option:selected").text()
+                    if(fileObj&&fileObj.name.indexOf(vtype_name)<0){
+                        clearInterval(t);                       //删除定时请求
+                        var obj = document.getElementById('download_url');
+                        obj.outerHTML=obj.outerHTML
+                        $(vlist_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                        alert("版本类型和文件名称不匹配");
+                        return
+                    }
+
+                    form.append("vtype", vtype);                    //向表单对象添加name和value
+                    form.append("file", fileObj);                //向表单对象添加name和value,将上传文件名称添加到value
+                    form.append("v_id", v_id);                //向表单对象添加name和value,将上传文件名称添加到value
+                    form.append("task_gen", task_gen);                //向表单对象添加name和value,将上传文件名称添加到value
+                    $.ajax({                                    //jquery的ajax提交
+                        type: 'POST',
+                        url: '/versionlist/update',
+                        data: form,                             //提交数据为表单对象
+                        processData: false,                     //默认为 true，数据被处理为 URL 编码格式。如果为 false，则阻止将传入的数据处理为 URL 编码的格式。
+                        contentType: false,                     //指 定 请 求 内 容 的 类 型
+                        success: function (ret) {
+                            clearInterval(t);                       //删除定时请求
+
+                            $(vlist_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            if (ret.code === TPE_OK) {
+                                vlist_info_dlg.tbl.reload();
+                                ywl.notify_success('修改版本成功！');
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress2').html("0 bytes");
+                                vlist_info_dlg.hide();
+                            }
+                            else {
+                                ywl.notify_error('修改版本失败：' + ret.message);
+                            }
+                        },
+                        error: function (xhr, errorText, errorStatus) {  //如果发生错误，返回错误信息
+                            clearInterval(t);                       //删除定时请求
+                            $(vlist_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress1').html("0 bytes");
+                            $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress2').html("0 bytes");
+                            ywl.notify_error('网络故障，修改版本失败！');
+                        },
+                        xhr: function () { //获取ajaxSettings中的xhr对象，为它的upload属性绑定progress事件的处理函数
+
+                            myXhr = $.ajaxSettings.xhr();
+                            if (myXhr.upload) { //检查upload属性是否存在
+                                //绑定progress事件的回调函数
+                                myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
+                            }
+                            return myXhr; //xhr对象返回给jQuery使用
+                        }
+
+                    })
+                }
+            );
+
+
+        } else {
+            //step-1  申请一个task,获取task_gen 标示 用于后续的文件上传
+            var t = null  //定时对象
+            var task_gen = null  //task编号
+            $.get("/get/task/gen", function (ret) {
+                    task_gen = ret.data
+                    var fileInput = $("#download_url")[0];
+                    if (fileInput && fileInput.files.length != 0) {
+                        byteSize = fileInput.files[0].size;
+                        //step-2  定时获取文件上传进度
+                        t = setInterval(function () {
+                            $.get("/get/task/process", {task_gen: task_gen}, function (ret) {
+                                    if (ret.code === TPE_OK) {
+                                        $('#process_data2').attr({value: ret.data, max: byteSize}); //更新数据到进度条
+                                        var percent = ret.data / byteSize * 100;
+                                        $('#progress2').html(ret.data + "/" + byteSize + " bytes. " + percent.toFixed(2) + "%");
+                                    } else {
+                                        ywl.notify_error('获取进度信息失败：' + ret.message);
+                                    }
+                                }
+                            );
+                        }, 200);
+                    }
+
+                    //step-3  开始文件上传，提交表单
+                    var fileObj = $("#download_url")[0].files[0];        //获取上传文件名称
+                    var form = new FormData();                  //创建表单对象
+                    var vtype = $("#vtype").val()
+                    var vtype_name=$("#vtype").find("option:selected").text()
+                    if(fileObj&&fileObj.name.indexOf(vtype_name)<0){
+                        clearInterval(t);                       //删除定时请求
+                        var obj = document.getElementById('download_url');
+                        obj.outerHTML=obj.outerHTML
+                        $(vlist_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                        alert("版本类型和文件名称不匹配");
+                        return
+                    }
+                    form.append("vtype", vtype);                    //向表单对象添加name和value
+                    form.append("file", fileObj);                //向表单对象添加name和value,将上传文件名称添加到value
+                    form.append("task_gen", task_gen);                //向表单对象添加name和value,将上传文件名称添加到value
+                    $.ajax({                                    //jquery的ajax提交
+                        type: 'POST',
+                        url: '/versionlist/add',
+                        data: form,                             //提交数据为表单对象
+                        processData: false,                     //默认为 true，数据被处理为 URL 编码格式。如果为 false，则阻止将传入的数据处理为 URL 编码的格式。
+                        contentType: false,                     //指 定 请 求 内 容 的 类 型
+                        success: function (ret) {
+                            clearInterval(t);                       //删除定时请求
+                            $(vlist_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            if (ret.code === TPE_OK) {
+                                vlist_info_dlg.tbl.reload();
+                                ywl.notify_success('添加版本成功！');
+                                $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress1').html("0 bytes");
+                                $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                                $('#progress2').html("0 bytes");
+                                vlist_info_dlg.hide();
+                            }
+                            else {
+                                ywl.notify_error('添加版本失败：' + ret.message);
+                            }
+                        },
+                        error: function (xhr, errorText, errorStatus) {  //如果发生错误，返回错误信息
+                            $(vlist_info_dlg.dom_id + " #btn-save").removeAttr("disabled");
+                            $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress1').html("0 bytes");
+                            $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress2').html("0 bytes");
+                            clearInterval(t);                       //删除定时请求
+                            $('#progress').html("0 bytes");
+                            ywl.notify_error('网络故障，添加版本失败！');
+                        },
+                        xhr: function () { //获取ajaxSettings中的xhr对象，为它的upload属性绑定progress事件的处理函数
+                            myXhr = $.ajaxSettings.xhr();
+                            if (myXhr.upload) { //检查upload属性是否存在
+                                //绑定progress事件的回调函数
+                                myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
+                            }
+                            return myXhr; //xhr对象返回给jQuery使用
+                        }
+
+                    })
+                }
+            );
+        }
+        return true;
+    };
+    $(vlist_info_dlg.dom_id + " #btn-save").click(function () {
+        if (!vlist_info_dlg.check_args()) {
+            return;
+        }
+        $(vlist_info_dlg.dom_id + " #btn-save").attr("disabled", true);
+        vlist_info_dlg.post();
+    });
+    return vlist_info_dlg
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        }else if (col_key==="action"){
+            var row_data = tbl.get_row(row_id);
+
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+                v_dlg.update_show(row_data.version,row_data.vtype,row_data.id)
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">修改</a>&nbsp');
+            return ret.join('');
+        }
+         render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T"," ") + ' </span>';
+        };
+
+
+        render.format_size=function (row_id,fields) {
+            return '<span class="badge badge-primary">' +fields.file_size?fields.file_size:0 +'</span>';
+        };
+
+        render.v_type=function (row_id,fields) {
+
+            var type="";
+             console.log(fields.vtypeName)
+            if (fields.vtypeName){
+
+               type =fields.vtypeName
+            }else {
+                type ="未知("+fields.vtype+")"
+            }
+            return '<span>' +type +'</span>';
+        };
+    };
+};
+
+

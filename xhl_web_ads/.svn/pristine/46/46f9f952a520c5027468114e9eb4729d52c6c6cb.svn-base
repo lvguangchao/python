@@ -1,0 +1,207 @@
+var v_dlg = null
+
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#contractpackageinfo-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='contractpackageinfo-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/income/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'package_id'}
+            },
+            {
+                title: "套餐ID", key: "package_id", width: 30, fields: {package_id: 'package_id'}
+            },
+            {title: "套餐名称", key: "package_name", width: 50},
+            {
+                title: "开始时间", key: "begin_time", width: 10, render: 'format_time',
+                fields: {logtime: 'begin_time'}
+            },
+            {
+                title: "结束时间", key: "end_time", width: 10, render: 'format_time',
+                fields: {logtime: 'end_time'}
+            },
+            {title: "个人结算金额", key: "", width: 50},
+            {title: "公会结算金额", key: "", width: 50},
+            {title: "结算总金额", key: "", width: 50},
+
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'package_id', protocol: 'package_id'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+    var host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    // //初始化素材下拉框
+    // $.get("/adsinfo/select", function (ret) {
+    //         var auxArr = [];
+    //         $.each(ret, function (k, v) {
+    //             auxArr[k] = "<option value='" + v["ads_id"] + "'>" + v["ads_name"] + "</option>";
+    //         });
+    //         $('#ads_id1').append(auxArr.join(''));
+    //         $('#ads_id2').append(auxArr.join(''));
+    //         $('#ads_id3').append(auxArr.join(''));
+    //         $('#ads_id4').append(auxArr.join(''));
+    //     }
+    // );
+    //
+    // $.get("/packinfo/select", function (ret) {
+    //         var auxArr = [];
+    //         $.each(ret, function (k, v) {
+    //             auxArr[k] = "<option value='" + v["package_id"] + "'>" + v["package_name"] + "</option>";
+    //         });
+    //         $('#package_id').append(auxArr.join(''));
+    //
+    //     }
+    // );
+
+    $("#btn-delete-host").click(function () {
+        var ids = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                ids.push(_row_data.package_id);
+            }
+        });
+
+        if (ids.length === 0) {
+            ywl.notify_error('请选择要批量删除的套餐！');
+            return;
+        }
+
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/contract_package_info/delete', {ids: ids}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('删除套餐成功！');
+                    } else {
+                        ywl.notify_error('删除套餐失败！' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，删除套餐失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要删除选定的套餐吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+
+
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='search']");
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        } else if (col_key === "action") {
+            var row_data = tbl.get_row(row_id);
+
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+
+                window.open("/incomeanchor/list?package_id="+row_data.package_id)
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">查看</a>&nbsp');
+            return ret.join('');
+        };
+
+
+
+        render.format_time = function (row_id, fields) {
+            return fields.logtime.replace("T", " ");
+        };
+
+
+    };
+};
+
+
+

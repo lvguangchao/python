@@ -1,0 +1,490 @@
+var v_dlg = null;
+var icom_dupdate = '';
+var plat_list = '';
+var create_table_filter_shch_list = null;
+var host_table = null;
+var user_type_data = null;
+var agent_id_data = null;
+var union_id_data = null;
+var user_id_data = null;
+var platform_id_data = null;
+var room_id_data = null;
+
+
+function package_list() {
+    $.get("/accountbalance/get_package", function (ret) {
+            // var auxArr = [];
+            // alert(ret);
+            $("#package_id").find("option").remove();
+            // $("#ads_schedule_id_list").append("<option value=''></option>");
+            $.each(ret, function (k, v) {
+                $("#package_id").append("<option value='" + v[0] + "'>" + v[1] + "</option>");
+            });
+            // $('#ads_schedule_id_list').append(auxArr.join(''));
+            $('#package_id').attr('rebuild');
+            // cb&&cb();
+        }
+    );
+}
+
+function need_list(user_id) {
+    $.get("/accountbalance/get_need_id?user_id=" + user_id, function (ret) {
+            // var auxArr = [];
+            // alert(ret);
+            $("#need_id").find("option").remove();
+            $("#play_id").find("option").remove();
+            $("#need_id").append("<option value=''></option>");
+            $.each(ret, function (k, v) {
+                $("#need_id").append("<option user='" + user_id + "' value='" + v[0] + "'>" + v[1] + "</option>");
+            });
+            // $('#ads_schedule_id_list').append(auxArr.join(''));
+            $('#need_id').attr('rebuild');
+            // cb&&cb();
+        }
+    );
+}
+
+function play_list(that) {
+    // console.log($(that).html());
+    var need_id = $(that).find("option:selected").val();
+    var user_id = $(that).find("option:selected").attr('user');
+    // var need_id = $(that).val();
+    $.get("/accountbalance/get_play_id?user_id=" + user_id + "&need_id=" + need_id, function (ret) {
+            // var auxArr = [];
+            $("#play_id").find("option").remove();
+            // $("#ads_schedule_id_list").append("<option value=''></option>");
+            $.each(ret, function (k, v) {
+                $("#play_id").append("<option value='" + v[0] + "'>" + v[0] + "</option>");
+            });
+            // $('#ads_schedule_id_list').append(auxArr.join(''));
+            $('#play_id').attr('rebuild');
+            // cb && cb();
+        }
+    );
+}
+
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#accountbalancelist-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='accountbalancelist-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/accountbalance/list'
+        },
+
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: "用户ID", key: "user_id", width: 10
+            },
+            {title: "用户身份", key: "user_type_name", width: 10},
+            {title: "用户昵称", key: "u_nickname", width: 10},
+            {title: "房间ID", key: "room_id", width: 10},
+            {title: "平台ID", key: "platform_id", width: 10},
+            {title: "经纪人昵称", key: "agent_name", width: 10},
+            {
+                title: "经纪人ID", key: "agent_id", width: 10
+            },
+            {title: "公会ID", key: "union_id", width: 10},
+            {title: "公会名称", key: "union_name", width: 10},
+            {title: "账户余额", key: "balance", width: 10},
+            {
+                title: "最后统计日", key: "last_stat_date", width: 10, render: 'format_time', sort: true,
+                fields: {logtime: 'last_stat_date'}
+            },
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {
+                    ID: 'user_id',
+                    protocol: 'user_id',
+                    user_type: 'user_type',
+                    agent_id: 'agent_id',
+                    union_id: 'union_id',
+                    user_id: 'user_id',
+                    platform_id: 'platform_id',
+                    room_id: 'room_id'
+                }
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+    };
+
+    host_table = ywl.create_table(host_table_options);
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    // new_element = document.createElement("script");
+    // new_element.setAttribute("type", "text/javascript");
+    // new_element.setAttribute("src", "toc_common.js");
+    // document.body.appendChild(new_element);
+    // var date_now = new Date().toLocaleDateString();
+    // date_now = getDate();
+    // document.getElementById("date").value = "" + getDate() + "";
+
+
+    $("#btn-add-host").click(function () {
+        v_dlg.create_show();
+    });
+
+    $(dom_id + " [ywl-filter='select']").click(function () {
+        host_table.load_data(cb_stack, {})
+
+    });
+    package_list();
+    // need_list();
+    ywl.create_table_filter_user_type_list(host_table, dom_id + " [ywl-filter='user_type']");
+    //
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='room_id']", "", "room_id");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='id_user_name']", "", "user_name");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='id_user_id']", "", "user_id");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='id_union_name']", "", "union_name");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='id_union_id']", "", "union_id");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='id_agent_id']", "", "id_agent_id");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='id_agent_name']", "", "id_agent_name");
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+
+}
+;
+
+function show_adsInfo(id) {
+    $.get("/needschedule/list_shchedule?id=" + id, function (ret) {
+        if (ret.code === 0) {
+            document.getElementById('schedule_id').innerHTML = ret.data.schedule_id;
+            document.getElementById('group_name').innerHTML = ret.data.group_name;
+            document.getElementById('count').innerHTML = ret.data.count;
+            document.getElementById('anchor_if_exp').innerHTML = ret.data.anchor_if_exp;
+            document.getElementById('lv_priority').innerHTML = ret.data.lv_priority;
+            document.getElementById('logtime').innerHTML = ret.data.logtime;
+
+            $("#dialog-scheduleinfo-info").modal();
+            $("#btn-save").click(function () {
+                if (!whitelist_infodlg.check_args()) {
+                    return;
+                }
+                whitelist_infodlg.post();
+            });
+        } else if (ret.code === -1) {
+            ywl.notify_error('' + ret.message);
+        }
+
+    })
+}
+
+
+function showDetail(that) {
+    if ($(that).attr("value") && $(that).attr("value") != "null" && $(that).attr("value") != "" && $(that).attr("value") != "None") {
+        var arr = $(that).attr("value").split(",");
+        var node = '';
+        for (r in arr) {
+
+            node += '<a href=' + arr[r].replace("pic.hub520.com", "pic.xiaohulu.com") + ' target="_blank">' + arr[r].replace("pic.hub520.com", "pic.xiaohulu.com") + '</a>' + "<br/>";
+        }
+        $("#shot_path").empty();
+        $("#shot_path").html(node);
+        $("#dialog-playdetail-info").modal();
+
+    } else {
+        alert("该播放记录暂无截图信息");
+    }
+
+}
+
+
+function show_taskInfo(id) {
+    $.get("/accountbalance/income_list?task_id=" + id, function (ret) {
+        if (ret.code === 0) {
+            $("#taskplayloginfo tbody").html("");
+            for (var i = 0; i < ret.data.length; i++) {
+
+                $("#taskplayloginfo").append("<tr><td>" + ret.data[i].income_log_id + "</td><td>" + ret.data[i].union_id + "</td><td>" + ret.data[i].agent_id + "</td><td>" + ret.data[i].user_id + "</td><td>" + ret.data[i].task_id + "</td><td>" + ret.data[i].play_id + "</td><td>" + ret.data[i].plat_id + "</td><td>" + ret.data[i].room_id + "</td><td>" + ret.data[i].comment + "</td><td>" + ret.data[i].income + "</td><td>" + ret.data[i].income_type_name + "</td><td>" + ret.data[i].income_from_name + "</td><td>" + ret.data[i].logtime.replace('T',' ') + "</td><tr>")
+            }
+
+            $("#dialog-taskplayloginfo-info").modal();
+
+        } else if (ret.code === -1) {
+            ywl.notify_error('' + ret.message);
+        }
+
+    })
+}
+
+
+function add_income(user_type, agent_id, union_id, user_id, platform_id, room_id) {
+    $('#dialog-addincomelist-info').modal();
+    user_type_data = user_type;
+    agent_id_data = agent_id;
+    union_id_data = union_id;
+    user_id_data = user_id;
+    platform_id_data = platform_id;
+    room_id_data = room_id;
+    need_list(user_id);
+}
+
+$("#dialog-addincomelist-info" + " #btn-save").click(function () {
+    var income_num = $("#income_num").val();
+    var package_id = $("#package_id").val();
+    var need_id = $("#need_id").val();
+    var play_id = $("#play_id").val();
+    user_type = user_type_data;
+    agent_id = agent_id_data;
+    union_id = union_id_data;
+    user_id = user_id_data;
+    platform_id = platform_id_data;
+    room_id = room_id_data;
+    if (income_num === '') {
+        alert('增加金额不能为空');
+    } else {
+        $.get("/accountbalance/add_income?user_type=" + user_type + "&agent_id=" + agent_id + "&union_id=" + union_id + "&user_id=" + user_id + "&platform_id=" + platform_id + "&room_id=" + room_id + "&income_num=" + income_num + "&package_id=" + package_id + "&need_id=" + need_id + "&play_id=" + play_id, function (ret) {
+            if (ret.code === 200) {
+                host_table.reload();
+                // location.reload();
+                ywl.notify_success('' + ret.message);
+                $('#dialog-addincomelist-info').modal('hide');
+            } else if (ret.code === 500) {
+                ywl.notify_error('' + ret.message);
+            }
+        });
+    }
+    // alert(play_id);
+
+});
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            var arr = fields.ID;
+            // var user_type = fields.user_type;
+            // var agent_id = fields.agent_id;
+            // var union_id = fields.union_id;
+            // var user_id = fields.user_id;
+            // var platform_id = fields.platform_id;
+            // var room_id = fields.room_id;
+            // if (fields.ret_code === 9999 && fields.cost_time > 0) {
+            // ret.push('<a href="javascript:void(0)"  class="btn btn-sm btn-primary" onclick="show_taskInfo(' + arr + ')">查看</a>')
+            ret.push('<a href=/accountbalance/income_list?id='+arr+' class="btn btn-sm btn-primary">查看</a>');
+            // ret.push('<a href="javascript:void(0)"  class="btn btn-sm btn-primary" onclick="add_income(' + user_type + ',\'' + agent_id + '\',\'' + union_id + '\',\'' + user_id + '\',\'' + platform_id + '\',\'' + room_id + '\')">增加余额</a>')
+            // ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">查看</a>&nbsp');
+            // ret.push('<a href="javascript:;" class="btn btn-sm btn-success" protocol=' + fields.protocol + ' ywl-btn-delete="' + fields.ID + '">删除</a>&nbsp');
+            // }
+            return ret.join('');
+        };
+
+
+        render.format_ads = function (row_id, fields) {
+            var temp = [];
+            if (fields.ads_schedule_id_list) {
+                var arr = fields.ads_schedule_id_list;
+                temp.push('<a href="javascript:void(0)" onclick="show_adsInfo(' + arr + ')">【' + arr + '】</a>')
+
+            }
+            return temp.join("  ");
+        };
+
+        render.format_task = function (row_id, fields) {
+            var temp = [];
+            if (fields.id) {
+                var arr = fields.id;
+                temp.push('<a href="javascript:void(0)" onclick="show_taskInfo(' + arr + ')">【' + arr + '】</a>')
+
+            }
+            return temp.join("  ");
+        };
+
+
+        render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T", " ") + ' </span>';
+        };
+    };
+};
+
+ywl.create_table_filter_search_box = function (tbl, selector, on_created, filter_name) {
+    var _tblf_sb = {};
+    // 此过滤器绑定的DOM对象，用于JQuery的选择器
+    _tblf_sb.selector = selector;
+
+    // 此过滤器绑定的表格控件
+    _tblf_sb._table_ctrl = tbl;
+    _tblf_sb._table_ctrl.append_filter_ctrl(_tblf_sb);
+
+    // 过滤器内容
+    _tblf_sb.filter_name = filter_name;
+    _tblf_sb.filter_default = '';
+
+    _tblf_sb.get_filter = function () {
+        var _val = $(_tblf_sb.selector + " input").val();
+        var _ret = {};
+        _ret[_tblf_sb.filter_name] = _val;
+        return _ret;
+    };
+
+
+    _tblf_sb.init = function (cb_stack, cb_args) {
+        // 绑定搜索按钮点击事件
+        // $(_tblf_sb.selector + " button").click(function () {
+        // 	_tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+        // });
+        // 绑定搜索输入框中按下回车键
+        $(_tblf_sb.selector + " input").keydown(function (event) {
+            if (event.which == 13) {
+                _tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+            }
+        });
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_sb);
+        }
+
+        cb_stack.exec();
+    };
+
+    return _tblf_sb;
+};
+
+
+ywl.create_table_filter_user_type_list = function (tbl, selector, on_created) {
+    var _tblf_st = {};
+
+    // 此表格绑定的DOM对象的ID，用于JQuery的选择器
+    _tblf_st.selector = selector;
+    // 此过滤器绑定的表格控件
+    _tblf_st._table_ctrl = tbl;
+    _tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+    // 过滤器内容
+    _tblf_st.filter_name = 'user_type';
+    _tblf_st.filter_default = '';
+    _tblf_st.filter_value = '';
+
+    _tblf_st.get_filter = function () {
+        var _ret = {};
+        _ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+        // _ret["package_id"] = $("#package_id").val();
+        return _ret;
+    };
+
+    _tblf_st.reset = function (cb_stack, cb_args) {
+        if (_tblf_st.filter_value == _tblf_st.filter_default) {
+            cb_stack.exec();
+            return;
+        }
+
+        cb_stack
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = _tblf_st.filter_default;
+                $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+                cb_stack.exec();
+            });
+    };
+    _tblf_st.init = function (cb_stack) {
+        var node = '';
+        var user_list = ywl.page_options.user_list;
+        node += '<li><a href="javascript:;" ywl-income-from="">所有</a></li>';
+        node += '<li role="separator" class="divider"></li>';
+        // node += '<li><a href="javascript:;" ywl-income-from="' + 0 + '"> 未处理 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 1 + '">普通主播 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 2 + '">公会用户 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 3 + '">经纪公司 </a></li>'
+
+        _tblf_st.filter_value = _tblf_st.filter_default;
+        $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+        $(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('所有');
+
+        // 点击事件绑定
+        $(_tblf_st.selector + ' ul [ywl-income-from]').click(_tblf_st._on_select);
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_st);
+        }
+
+        cb_stack.exec();
+    };
+
+    _tblf_st._on_select = function () {
+        var income_from = $(this).attr("ywl-income-from");
+        // icom_dupdate = income_from;
+        if (income_from == 1) {
+            $("#id_user_name").show();
+            $("#id_user_id").show();
+            $("#room_id").show();
+            $("#id_union_name").hide();
+            $("#id_union_id").hide();
+            $("#id_agent_id").hide();
+            $("#id_agent_name").hide()
+        } else if (income_from == 2) {
+            $("#id_user_name").hide();
+            $("#room_id").hide();
+            $("#id_user_id").hide();
+            $("#id_union_name").show();
+            $("#id_union_id").show();
+            $("#id_agent_id").hide();
+            $("#id_agent_name").hide()
+        } else if (income_from == 3) {
+            $("#id_user_name").hide();
+            $("#room_id").hide();
+            $("#id_user_id").hide();
+            $("#id_union_name").hide();
+            $("#id_union_id").hide();
+            $("#id_agent_id").show();
+            $("#id_agent_name").show()
+        } else {
+            $("#id_user_name").show();
+            $("#id_user_id").show();
+            $("#room_id").show();
+            $("#id_union_name").show();
+            $("#id_union_id").show();
+            $("#id_agent_id").show();
+            $("#id_agent_name").show()
+        }
+        var income_from_html = $(this).html();
+
+        var cb_stack = CALLBACK_STACK.create();
+        cb_stack
+            .add(_tblf_st._table_ctrl.load_data)
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = income_from;
+                $(_tblf_st.selector + ' button span:first').html(income_from_html);
+                // cb_stack.exec();
+            });
+        cb_stack.exec();
+    };
+
+    return _tblf_st;
+};

@@ -1,0 +1,222 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+"""
+@author: lvguangchao
+@email: guangchao.lv@qq.com
+@file: balance.py
+@time: 2017/12/18 11:27
+"""
+from eom_common.eomcore.logger import *
+from .base import SwxJsonHandler
+from decimal import *
+import xlrd
+from eom_app.orm.tables import AdsInfo, ContractPackInfo, NeedInfo, NeedGroupInfo, AdsContractInfo, \
+    GroupNeedMap, NeedSchedule, AdsConfigAnchorWhitelist, AdsConfigAnchorBlacklist, \
+    NeedSchedule, TLogWithdrawAnchor, Paltform, BaseUser, AdsNeedPlanInfo, \
+    TIdentityPersonal, TaskPlayLog, AdsNeedPlanInfo, AdsOpLog, AdsTask, PlayLogAuto, \
+    Adresult, PackageNeedMap, PackageInfo, BasePlatformsGuild, DashboardTask, TAccountAnchor, BaseRoom, BaseUnion, \
+    AgentInfo, TLogIncomeAnchor
+
+import re
+from .helper import randomCode
+from sqlalchemy import func, or_, and_, distinct, case,desc
+import json, os, base64, datetime, tornado, random, time, zipfile
+from  eom_app.orm.JSONEncoder import AlchemyEncoder
+from eom_common.eomcore.logger import log
+from eom_app.controller.helper.uploadManager import app_upManager
+from eom_app.app.configs import app_cfg
+from eom_app.controller.helper.identity import app_map
+from eom_app.controller.export import export, exportIncome, exportPlayRecord
+from xlrd import xldate_as_tuple
+from urllib import request
+from eom_app.controller.helper.ExcelImportManager import getplaylogDict, getplaylogAutoDict, getplaylogExport,getPlatDataSyn
+from urllib.parse import urljoin
+cfg = app_cfg()
+from decimal import *
+from tornado.concurrent import run_on_executor
+
+app_upManager = app_upManager()
+
+app_playlog = getplaylogDict()
+app_playlogAuto = getplaylogAutoDict()
+app_playlogExport = getplaylogExport()
+app_PlatDataSyn = getPlatDataSyn()
+
+
+##同步平台结算数据 到120.92.208.113
+class PlatBalanceDataSynHander(SwxJsonHandler):
+    @tornado.gen.coroutine
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        date=self.get_argument('date',None)
+        id=self.get_argument('id',None)
+        playnum=self.get_argument('playnum',None)
+        username = self.current_user["name"]
+
+        # if args:
+        #     args=json.loads(args)
+        # date=args['date']
+
+        yield self.synDate(date,id,username,playnum)
+
+        self.db_plat.close()
+        self.db_ads.close()
+        self.db_wealth.close()
+        self.write_json(0)
+
+    @run_on_executor
+    def synDate(self, date,id,username,playnum):
+        sql = 'SELECT a.play_id,a.task_id,a.need_id,a.postion_id,a.ads_id,' \
+              'a.user_id,a.STATUS,a.popularity_from,' \
+              'a.popularity,a.record_path,a.screen_shot_path,' \
+              'a.record_code,a.verify_status,a.verify_result,' \
+              'a.begin_time,a.end_time,a.create_time,a.logtime,a.log_create_time,' \
+              'a.close_account,b.room_id,b.plat_id,b.agent_id FROM ads_task_play_log as a ' \
+              'LEFT JOIN ads_task as b ON a.task_id = b.task_id WHERE  ' \
+              'a.create_time=\'{}\'  and verify_status = 1 and a.close_account= 1'.format(date)
+        results = self.db_ads.execute(sql).fetchall()
+
+        # now = app_PlatDataSyn[int(playnum)]["now"] + 1
+        # max = app_PlatDataSyn[int(playnum)]["max"]
+        app_PlatDataSyn[int(playnum)] = {"now": 0, "max": len(results)}
+
+        ##查询财富库数据，如果有，以财富库数据为准
+        sql_income = 'select play_id,task_id,need_id,income,income_from,income_log_id,' \
+                     'ads_union_group_id,union_id,room_id,plat_id from T_log_income_anchor'
+        results_income = self.db_wealth.execute(sql_income).fetchall()
+        play_dict = dict()
+        for i in results_income:
+            # play_id, task_id, need_id, income, income_from, income_log_id, ads_union_group_id, union_id, room_id, plat_id = i
+            play_dict[i[0]] = i
+
+        ##查询出needinfo字典
+        needInfo_dict = dict()
+        sql_need = 'select need_id ,anchor_level, package_id from ads_need_info'
+        ret = self.db_ads.execute(sql_need)
+        for i in ret:
+            need_id, anchor_level, package_id = i
+            needInfo_dict[need_id] = package_id, anchor_level
+
+        # 删除当天的数据
+        sql_delete = 'delete from stat_play_detail WHERE task_create_time=\'{}\''.format(date)
+        self.db_plat.execute(sql_delete)
+        # 重新插入
+        for ret in results:
+            ##更新进度信息
+            now = app_PlatDataSyn[int(playnum)]["now"] + 1
+            app_PlatDataSyn[int(playnum)]["now"]=now
+
+            play_id, task_id, need_id, postion_id, ads_id, \
+            user_id, status, popularity_from, \
+            popularity, record_path, screen_shot_path, \
+            record_code, verify_status, verify_result, \
+            begin_time, end_time, create_time, logtime, log_create_time, \
+            close_account, room_id, plat_id, agent_id = ret
+
+            record_path = record_path if record_path else ''
+            screen_shot_path = screen_shot_path if screen_shot_path else ''
+            anchor_name = ''
+            room_url = ''
+            anchor_level = ''
+            new_level = ''
+            room = app_map().getRoomInfoById(room_id)
+            if room:
+                anchor_name = room['emcee']
+                room_url = room['source_link']
+                anchor_level = room['ad_level']
+                new_level = room['new_level']
+
+            popularity_from = popularity_from if popularity_from else 1
+            popularity = popularity if popularity else 0
+            if not plat_id:
+                continue
+                log.e('play_id：{} 对应plat_id 是空'.format(play_id))
+
+            income = 0
+            income_from = 0
+            income_log_id = 0
+            ads_union_group_id = 0
+            union_id = 0
+
+            if play_id in play_dict:
+                incomeInfo = play_dict[play_id]
+                income = incomeInfo[3]
+                income_from = incomeInfo[4]
+                income_log_id = incomeInfo[5]
+                ads_union_group_id = incomeInfo[6]
+                union_id = incomeInfo[7]
+
+            if need_id not in needInfo_dict:
+                log.e("can not find the need_id:{}\n".format(need_id))
+                continue
+            package_id, need_level = needInfo_dict[need_id]
+
+            sql_str = "INSERT INTO stat_play_detail (play_id, package_id, task_id,plat_id,room_id,room_url,anchor_name," \
+                      "need_plan_id, need_id, postion_id, ads_id, user_id," \
+                      "status,popularity_from,popularity,income,income_log_id,ads_union_group_id,union_id,record_path, " \
+                      "screen_shot_path,record_code, verify_status,verify_result," \
+                      "task_create_time,begin_time,end_time,need_level,anchor_level,new_level, agent_id) " \
+                      "VALUES ({},{},{},{},\'{}\',\'{}\',\'{}\'," \
+                      "{},\'{}\',\'{}\',\'{}\',{}," \
+                      "\'{}\',\'{}\',\'{}\',{},{},{},{},\'{}\'," \
+                      "\'{}\',{},{},{}," \
+                      "\'{}\',\'{}\',\'{}\',\'{}\',\'{}\',\'{}\', {})".format(play_id, package_id, task_id, plat_id,
+                                                                              room_id, room_url, anchor_name,
+                                                                              0, need_id, postion_id, ads_id, user_id,
+                                                                              status, popularity_from, popularity,
+                                                                              income, income_log_id, ads_union_group_id,
+                                                                              union_id, record_path,
+                                                                              screen_shot_path, record_code,
+                                                                              verify_status, verify_result,
+                                                                              create_time, begin_time, end_time,
+                                                                              need_level, anchor_level, new_level,
+                                                                              agent_id)
+            self.db_plat.execute(sql_str)
+
+        self.db_ads.query(PlayLogAuto).filter(PlayLogAuto.auto_id==id).update({
+            PlayLogAuto.syn_datetime:datetime.datetime.now(),
+            PlayLogAuto.syn_user:username
+        })
+
+        ##添加日志
+        oplog = AdsOpLog()
+        oplog.op_type = 8
+        user = self.get_current_user()
+        oplog.op_user_id = user["id"]
+        oplog.op_user_name = user["name"]
+        oplog.op_desc = '数据同步 日期:' + str(date)
+        oc = {"atuo_id": id, "date": date, "data_num": len(results)}
+        oplog.op_content = str(oc)
+        oplog.createtime = datetime.datetime.now()
+        self.db_ads.add(oplog)
+
+        try:
+            self.db_plat.commit()
+            self.db_ads.commit()
+        except Exception as e:
+            log.e(play_id)
+            self.db_plat.rollback()
+            self.db_ads.rollback()
+
+        log.w('日期:{} 数据同步成功\n'.format(date))
+
+
+class PlatDataSynSelectHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self):
+        playnum = self.get_argument("playnum", None)
+        if playnum is None:
+            self.write_json(-1, 'playlog进度序列号不能为空')
+            return
+        if int(playnum) not in app_PlatDataSyn:
+            app_PlatDataSyn[int(playnum)] = {"now": 0, "max": 0}
+        self.write_json(0, '', app_PlatDataSyn[int(playnum)])
+
+
+class PlatDataSynCreateHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        date_now = int(time.time())
+        app_PlatDataSyn[date_now] = {"now": 0, "max": 0}
+        self.write_json(0, '', date_now)

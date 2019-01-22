@@ -1,0 +1,1628 @@
+# -*- coding: utf-8 -*-
+from eom_common.eomcore.logger import *
+from eom_common.eomcore.logger import *
+from .base import SwxJsonHandler
+from eom_app.orm.tables import User, VersionList, Vtype, \
+    VersionMap, Plugin, Plugin_batch, PluginType, PluginFile, \
+    PluginFileVersion, PluginPlatform, AdmRole, AdmMenu, AdmRoleMenu
+from .helper import randomCode
+from sqlalchemy import func, or_
+import json, os, base64, datetime, tornado, random
+from  eom_app.orm.JSONEncoder import AlchemyEncoder
+from eom_common.eomcore.logger import log
+from eom_app.controller.helper.uploadManager import app_upManager
+from eom_app.app.configs import app_cfg
+from eom_app.controller.helper.identity import app_map
+from eom_app.controller.helper.permision import permision
+
+cfg = app_cfg()
+import time, zipfile
+
+app_upManager = app_upManager()
+
+
+# 登陆
+class LoginHandler(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        self.render('/auth/login.mako')
+
+    def post(self, *args, **kwargs):
+        input_code = self.params('input_code')
+        randomCode = self.get_session(self._s_id + '_code')
+        if (str(input_code)) != str(randomCode):
+            self.write_json(-2)
+        else:
+            user_pass = self.params('user_pass')
+            user_name = self.params("user_name")
+            data = self.db_adm.query(User).filter(
+                User.user_name == user_name, User.user_pwd == user_pass, User.enable == 1).first()
+            if data:
+                user = dict()
+                user['id'] = data.user_id
+                user['name'] = user_name
+                user['nick_name'] = user_name
+                user['role_id'] = data.role_id
+                user['is_login'] = True
+                # 菜单id
+                role_menu = app_map().get_role_menu(data.role_id)
+                # 菜单 以及菜单背后的url
+                menu_scource = app_map().get_menu_scource(data.role_id)
+                user['role_menu'] = role_menu
+                user['menu_scource'] = menu_scource
+                self.set_session(self._s_id, user)
+                self.write_json(0)
+                self.set_cookie('user_name', user_name)
+            else:
+                self.write_json(-1)
+            self.db_adm.close()
+
+
+# 退出
+class SignOutHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        if self._s_id:
+            self.del_session(self._s_id)
+        self.redirect('/login')
+
+
+# 密码修改
+class PwdUpdateHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/auth/update_pwd.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        raw_pwd = self.get_argument("raw_pwd", None)
+        pwd_first = self.get_argument("pwd_first", None)
+        pwd_second = self.get_argument("pwd_second", None)
+        if not raw_pwd:
+            self.write_json(-1, "原始密码不能为空")
+            return
+
+        if not pwd_first or not pwd_second:
+            self.write_json(-1, "新密码不能为空")
+            return
+
+        if pwd_first != pwd_second:
+            self.write_json(-1, "两密码不相同")
+            return
+        name = self.current_user["name"]
+        user = self.db_adm.query(User).filter(User.user_name == name, User.user_pwd == raw_pwd).first()
+        if not user:
+            self.write_json(-1, "原始密码错误")
+            self.db_adm.close()
+        else:
+            try:
+                user.user_pwd = pwd_first
+                self.db_adm.commit()
+                self.write_json(0, "success")  # 将上传好的路径返回
+            except Exception as  e:
+                self.db_adm.rollback()
+                log.e(e)
+                self.write_json(500, "密码修改失败")
+            finally:
+                self.db_adm.close()
+
+
+# 请求一个task 去上传文件,返回task_gen 标示
+class getTask4UploadHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        temp_gen = app_upManager.create_task()
+        self.write_json(0, "success", temp_gen)
+
+
+class getTaskProcessHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        task_gen = self.get_argument("task_gen", None)
+        if task_gen:
+            process = app_upManager.find_Process(task_gen)
+            self.write_json(0, "success", process)
+        else:
+            self.write_json(-1, "系统错误")
+
+
+# 主页
+class IndexHandler(SwxJsonHandler):
+    """
+    #@tornado.web.authenticated
+     权限注解，没有current_user 自动跳转到login_url
+    """
+
+    @tornado.web.authenticated
+    def get(self):
+        role_menu = self.current_user['role_menu']
+        self.render("index.mako", role_menu=role_menu)
+
+
+# 没有权限页面
+class notPermissHander(SwxJsonHandler):
+    def get(self):
+        self.render("/not_permiss.mako")
+
+
+# 验证码
+class RandomCode(SwxJsonHandler):
+    def get(self):
+        code_img, strs = randomCode.create_validate_code()
+        self.set_session(self._s_id + '_code', strs)
+        # stream=BytesIO()
+        # code_img.save(stream,"GIF")
+        prex = ''.join([str(i) for i in random.sample(range(0, 9), 4)])
+        file_name = "idencode" + prex + ".png"
+        # error =》 多线程下，非原子性,加一个随机数后缀
+        path = os.path.abspath(os.path.join(__file__, "..", "..", "..", "..", "data", file_name))
+        code_img.save(path)
+        with open(path, 'rb') as f:
+            ls_f = base64.b64encode(f.read())
+            self.write_raw_json(bytes.decode(ls_f))
+        # 删除文件
+        try:
+            os.remove(path)
+        except Exception as e:
+            pass
+
+
+class UserHander(SwxJsonHandler):
+    @permision
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/sys_manager/user/user_list.mako")
+
+    @permision
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        try:
+            query = self.db_adm.query(User)
+            total = query.count()
+            query = query.order_by(User.user_id.desc())
+            query = query.limit(int(limit['per_page'])).offset(
+                (int(limit['page_index'] * limit['per_page'])))
+            query_result = query.all()
+        except Exception as e:
+            log.e(e)
+            query_result = []
+        finally:
+            self.db_adm.close()
+        data = list()
+        for u in query_result:
+            data.append(json.loads(json.dumps(u, cls=AlchemyEncoder)))
+        ret = self.set_page_params(total, limit, data)
+        self.write_json(0, data=ret)
+
+
+# 版本管理
+class VersionListHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/client_manager/version/version_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        sql = "SELECT l.id,l.version,v.vtype_name AS vtypeName,l.download_url,l.md5," \
+              "l.file_size,l.logtime,l.vtype FROM t_obsmgr_other_version_list l" \
+              " LEFT JOIN t_obsmgr_other_vtype v ON v.vtype_code = l.vtype "
+        offset = "ORDER BY logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+
+        datas = self.db.execute(sql + offset).fetchall()
+        lst = list()
+        for data in datas:
+            id = data[0]
+            version = data[1]
+            vtypeName = data[2]
+            download_url = data[3]
+            md5 = data[4]
+            file_size = data[5]
+            logtime = data[6].isoformat()
+            vtype = data[7]
+            lst.append({"id": id, "version": version, "vtypeName": vtypeName, "download_url": download_url,
+                        "md5": md5, "file_size": file_size, "logtime": logtime, "vtype": vtype})
+        count = self.db.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db.close()
+
+
+# 版本管理-删除
+class VersionListDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        versions = args["version_list"]
+        try:
+            if versions:
+                self.db.query(VersionList).filter(VersionList.id.in_(versions)).delete(synchronize_session=False)
+                self.db.commit()
+                self.write_json(0, 'success')
+            else:
+                self.write_json(-1, "没有选中删除项")
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db.close()
+
+
+class VersionListAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        file_metas = self.request.files.get("file", None)  # 获取上传文件信息
+        vtype = self.get_argument("vtype", None)
+        task_gen = self.get_argument("task_gen", None)
+        if not vtype:
+            self.write_json(-1, "版本类型不能为空")
+            return
+        if not task_gen:
+            self.write_json(-1, "系统错误")
+            return
+        v_list = VersionList()
+        v_list.vtype = vtype
+        upload = app_upManager.find_task(task_gen).uploadSSH
+        if file_metas:
+            for meta in file_metas:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                down_url = yield self.upload_task(upload, meta['body'], file_name)
+                import hashlib  # 计算文件的MD5
+                md5_obj = hashlib.md5()
+                md5_obj.update(meta['body'])
+                hash_code = md5_obj.hexdigest()
+                md5 = str(hash_code).upper()
+                v_list.md5 = md5
+                v_list.download_url = down_url
+                file_size = len(meta['body'])  # 计算文件的大小
+                v_list.file_size = file_size
+
+        # 查询当前版本今天是否上传
+        now_time = datetime.datetime.now().strftime('%Y-%m-%d')
+
+        query = self.db.query(VersionList).filter(VersionList.vtype == vtype,
+                                                  VersionList.logtime <= now_time + " 23:59:59",
+                                                  VersionList.logtime >= now_time + " 0:0:0")
+
+        v_data = query.order_by(VersionList.logtime.desc()).first()
+        version = datetime.datetime.now().strftime('%Y%m%d')
+
+        if v_data:
+            v_list.version = version + chr(ord(v_data.version[-1:]) + 1)
+        else:
+            v_list.version = version + "A"
+
+        # 添加一条版本升级记录
+        vmap = VersionMap()
+        vmap.current_version = v_list.version
+        vmap.update_version = v_list.version
+        vmap.vtype = vtype
+        vmap.update_sign = 0
+
+        try:
+            self.db.add(v_list)
+            self.db.add(vmap)
+            self.db.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "添加失败")
+        finally:
+            self.db.close()
+
+
+class VersionListUpdateHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        file_metas = self.request.files.get("file", None)  # 获取上传文件信息
+        vtype = self.get_argument("vtype", None)
+        task_gen = self.get_argument("task_gen", None)
+
+        if not vtype:
+            self.write_json(-1, "版本类型不能为空")
+            return
+        if not task_gen:
+            self.write_json(-1, "系统错误")
+            return
+        v_id = self.get_argument("v_id", None)
+        v_list = self.db.query(VersionList).filter(VersionList.id == v_id).first()
+        # 查询当前版本今天是否上传
+        now_time = datetime.datetime.now().strftime('%Y-%m-%d')
+        query = self.db.query(VersionList).filter(VersionList.vtype == vtype,
+                                                  VersionList.logtime <= now_time + " 23:59:59",
+                                                  VersionList.logtime >= now_time + " 0:0:0")
+        v_data = query.order_by(VersionList.logtime.desc()).first()
+        v_list.vtype = vtype
+
+        upload = app_upManager.find_task(task_gen).uploadSSH
+        if file_metas:
+            for meta in file_metas:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                down_url = yield self.upload_task(upload, meta['body'], file_name)
+                import hashlib  # 计算文件的MD5
+                md5_obj = hashlib.md5()
+                md5_obj.update(meta['body'])
+                hash_code = md5_obj.hexdigest()
+                md5 = str(hash_code).upper()
+                file_size = len(meta['body'])  # 计算文件的大小
+                v_list.md5 = md5
+                v_list.download_url = down_url
+                v_list.file_size = file_size
+
+        version = datetime.datetime.now().strftime('%Y%m%d')
+        if v_data:
+            v_list.version = version + chr(ord(v_data.version[-1:]) + 1)
+        else:
+            v_list.version = version + "A"
+        try:
+            self.db.commit()
+            self.write_json(0, "success", v_list.download_url)  # 将上传好的路径返回
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "修改失败")
+        finally:
+            self.db.close()
+
+
+# 类型管理
+class VtypeListHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/client_manager/vtype/vtype_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        version_list = self.db.query(Vtype).limit(limit['per_page']).offset(limit['page_index'] * 10).all()
+        count = self.db.query(func.count(Vtype.id)).scalar()
+        lst = list()
+        for version in version_list:
+            lst.append(json.loads(json.dumps(version, cls=AlchemyEncoder)))
+
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db.close()
+
+
+class VtypeAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        vtype_code = args["vtype_code"]
+        vtype_name = args["vtype_name"]
+        if not vtype_code:
+            self.write_json(-1, "类型编号不能为空")
+            return
+        if not vtype_name:
+            self.write_json(-1, "类型名称不能为空")
+            return
+        v_data = self.db.query(Vtype).filter(Vtype.vtype_code == vtype_code).all()
+        if v_data:
+            self.write_json(-1, "类型不可重复添加")
+            self.db.close()
+            return
+        else:
+            vtype = Vtype()
+            vtype.vtype_code = vtype_code
+            vtype.vtype_name = vtype_name
+            try:
+                self.db.add(vtype)
+                self.db.commit()
+                self.write_json(0, "success")
+            except Exception as e:
+                self.db.rollback()
+                log.e(e)
+                self.write_json(500, "添加失败")
+            finally:
+                self.db.close()
+
+
+class VtypeEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            vtype_name = args["vtype_name"]
+        id = args["id"]
+        if not vtype_name:
+            self.write_json(-1, "类型名称不能为空")
+            return
+        try:
+            v_data = self.db.query(Vtype).filter(Vtype.id == id).first()
+            v_data.vtype_name = vtype_name
+            self.db.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "修改失败")
+        finally:
+            self.db.close()
+
+
+# 类型管理-删除
+class VtypeDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            vtype_list = args["vtype_list"]
+        try:
+            if vtype_list:
+                self.db.query(Vtype).filter(Vtype.id.in_(vtype_list)).delete(synchronize_session=False)
+                self.db.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db.close()
+
+
+class VtypeMapHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        vtype_list = self.db.query(Vtype).all()
+        map = dict()
+        for vtype in vtype_list:
+            map[vtype.vtype_code] = vtype.vtype_name
+        self.write_raw_json(map)
+        self.db.close()
+
+
+class VtypeList4AllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        vtype_list = self.db.query(Vtype).all()
+        lst = list()
+        for vtype in vtype_list:
+            lst.append(json.loads(json.dumps(vtype, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+        self.db.close()
+
+
+# 版本升级管理
+class VersionMapListHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/client_manager/upgrade/version_map.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        sql = "SELECT m.id,m.current_version,m.update_version,m.vtype,v.vtype_name as vtype_name," \
+              "m.update_sign,m.logtime from  t_obsmgr_other_version_map m LEFT JOIN " \
+              " t_obsmgr_other_vtype v on m.vtype=v.vtype_code"
+        offset = " ORDER BY logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+
+        datas = self.db.execute(sql + offset).fetchall()
+        lst = list()
+        for data in datas:
+            id = data[0]
+            current_version = data[1]
+            update_version = data[2]
+            vtype = data[3]
+            vtype_name = data[4]
+            update_sign = data[5]
+            logtime = data[6].isoformat()
+
+            lst.append({"id": id, "current_version": current_version, "update_version": update_version, "vtype": vtype,
+                        "vtype_name": vtype_name, "update_sign": update_sign, "logtime": logtime})
+        count = self.db.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db.close()
+
+
+# 升级管理--删除
+class VersionMapDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            vmap_list = args["vmap_list"]
+        try:
+            if vmap_list:
+                self.db.query(VersionMap).filter(VersionMap.id.in_(vmap_list)).delete(synchronize_session=False)
+                self.db.commit()
+                self.write_json(0, 'success')
+
+            else:
+                self.write_json(-1, "没有选中删除项")
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db.close()
+
+
+class VersionMapAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        current_version = args["current_version"]
+        update_version = args["update_version"]
+        vtype = args["vtype"]
+        update_sign = args["update_sign"]
+        if not vtype:
+            self.write_json(-1, "类型名称不能为空")
+            return
+        if not current_version:
+            self.write_json(-1, "当前编号不能为空")
+            return
+        if not update_version:
+            self.write_json(-1, "升级编号不能为空")
+            return
+        if not update_sign:
+            self.write_json(-1, "标志不能为空")
+            return
+        v_data = self.db.query(VersionMap).filter(VersionMap.current_version == current_version,
+                                                  VersionMap.vtype == vtype).first()
+        if v_data:
+            self.write_json(-1, "不可重复添加")
+            self.db.close()
+        else:
+            vmap = VersionMap()
+            vmap.current_version = current_version
+            vmap.update_version = update_version
+            vmap.vtype = vtype
+            vmap.update_sign = update_sign
+            try:
+                self.db.add(vmap)
+                self.db.commit()
+                self.write_json(0, "success")
+            except Exception as e:
+                self.db.rollback()
+                log.e(e)
+                self.write_json(500, "添加失败")
+            finally:
+                self.db.close()
+
+
+class VersionMapEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        current_version = args["current_version"]
+        update_version = args["update_version"]
+        vtype = args["vtype"]
+        update_sign = args["update_sign"]
+        id = args["id"]
+        if not vtype:
+            self.write_json(-1, "类型名称不能为空")
+            return
+        if not current_version:
+            self.write_json(-1, "当前编号不能为空")
+            return
+        if not update_version:
+            self.write_json(-1, "升级编号不能为空")
+            return
+
+        if not update_sign:
+            self.write_json(-1, "标志不能为空")
+            return
+        try:
+            v_data = self.db.query(VersionMap).filter(VersionMap.id == id).first()
+            v_data.current_version = current_version
+            v_data.update_version = update_version
+            v_data.vtype = vtype
+            v_data.update_sign = update_sign
+            self.db.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "修改失败")
+        finally:
+            self.db.close()
+
+
+class Version4AllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+
+        sql = ["select version from t_obsmgr_other_version_list"]
+        vtype = self.get_argument("vtype", None)
+        if vtype:
+            sql.append(" where vtype={}".format(vtype))
+        sqlstr = "".join(sql)
+        datas = self.db.execute(sqlstr)
+        lst = list()
+        for data in datas:
+            lst.append(data[0])
+        self.write_raw_json(lst)
+        self.db.close()
+
+
+class PluginHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/client_manager/plugin/plugin_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        sql = "select id,update_url,core_url,tools_url,module_url,logtime,update_person,state,dir from t_obsmgr_plugin"
+        offset = " ORDER BY logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+
+        datas = self.db.execute(sql + offset).fetchall()
+        lst = list()
+        for data in datas:
+            id = data[0]
+            update_url = data[1]
+            core_url = data[2]
+            tools_url = data[3]
+            module_url = data[4]
+            logtime = data[5].isoformat()
+            update_person = data[6]
+            state = data[7]
+            dir = data[8]
+
+            lst.append({"id": id, "update_url": update_url, "core_url": core_url, "tools_url": tools_url,
+                        "module_url": module_url, "update_person": update_person, "state": state, "logtime": logtime,
+                        "dir": dir})
+        count = self.db.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db.close()
+
+
+class PluginAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+
+        plugin = Plugin()
+        plugin.state = 0
+        plugin.update_person = self.current_user["name"]
+        try:
+            self.db.add(plugin)
+            self.db.commit()
+            self.write_json(0, "success", plugin.id)
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db.close()
+
+
+class PluginEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        plugin_id = args["plugin_id"]
+        setup_name = args["setup_name"]
+        tools_name = args["tools_name"]
+        module_name = args["module_name"]
+        core_name = args["core_name"]
+        state = args["state"]
+        pack_type = args["pack_type"]
+        if pack_type is None or plugin_id is None:
+            self.write_json(-1, '系统错误')
+            return
+        pack_type_arr = pack_type.split(",")
+
+        try:
+            v_data = self.db.query(Plugin).filter(Plugin.id == plugin_id).first()
+            if "create" in pack_type_arr:
+                v_data.update_url = setup_name
+            if "update" in pack_type_arr:
+                v_data.core_url = core_name
+                v_data.tools_url = tools_name
+                v_data.module_url = module_name
+            v_data.update_person = self.current_user["name"]
+            v_data.state = int(state)
+            v_data.dir = str(plugin_id)
+
+            self.db.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "修改失败")
+        finally:
+            self.db.close()
+
+
+class PluginDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            id = args["id"]
+        try:
+            if id:
+                self.db.query(Plugin).filter(Plugin.id == id).delete(synchronize_session=False)
+                self.db.commit()
+                self.write_json(0, 'success')
+            else:
+                self.write_json(-1, "没有选中删除项")
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db.close()
+
+
+class PluginBatchHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/client_manager/plugin_batch/pluginBatch_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        sql = "select batch_id,id,update_url,batch_dir,logtime,update_person,state,chanel_id,chanel_name from t_obsmgr_plugin_batch"
+        offset = " ORDER BY logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+
+        datas = self.db.execute(sql + offset).fetchall()
+        lst = list()
+        for data in datas:
+            batch_id = data[0]
+            id = data[1]
+            update_url = data[2]
+            batch_dir = data[3]
+            logtime = data[4].isoformat()
+            update_person = data[5]
+            state = data[6]
+            chanel_id = data[7]
+            chanel_name = data[8]
+
+            lst.append({"chanel_id": chanel_id, "chanel_name": chanel_name, "batch_id": batch_id, "id": id,
+                        "update_url": update_url, "batch_dir": batch_dir, "update_person": update_person,
+                        "state": state, "logtime": logtime})
+        count = self.db.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db.close()
+
+
+class PluginBatchAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        setup_name = args["setup_name"]
+        batch_dir = args["batch_dir"]
+        state = args["state"]
+        if not batch_dir:
+            self.write_json(-1, "系统错误")
+            return
+        if not setup_name:
+            self.write_json(-1, "系统错误")
+            return
+        if not state:
+            self.write_json(-1, "系统错误")
+            return
+
+        # 查询出来所有渠道号
+        sql = "select chanel_id,name from t_obsmgr_plugin_chanel"
+        datas = self.db.execute(sql).fetchall()
+
+        for data in datas:
+            temp_setup_name = "{}_{}.exe".format(setup_name, data[1])
+            plugin_batch = Plugin_batch()
+            plugin_batch.batch_id = batch_dir[6:]
+            plugin_batch.update_url = temp_setup_name
+            plugin_batch.update_person = self.current_user["name"]
+            plugin_batch.batch_dir = batch_dir
+            plugin_batch.chanel_id = data[0]
+            plugin_batch.chanel_name = data[1]
+            plugin_batch.state = state
+
+            self.db.add(plugin_batch)
+        try:
+            self.db.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db.close()
+
+
+class PluginBatchDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            id = args["id"]
+        try:
+            if id:
+                self.db.query(Plugin_batch).filter(Plugin_batch.id == id).delete(synchronize_session=False)
+                self.db.commit()
+                self.write_json(0, 'success')
+            else:
+                self.write_json(-1, "没有选中删除项")
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db.close()
+
+
+# 获取所有渠道号
+class chanelListHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        sql = "select id,chanel_id,name from t_obsmgr_plugin_chanel"
+        datas = self.db.execute(sql).fetchall()
+        lst = list()
+        for data in datas:
+            id = data[0]
+            chanel_id = data[1]
+            name = data[2]
+            lst.append({"id": id, "chanel_id": chanel_id, "name": name})
+        self.write_json(0, "success", lst)
+
+
+##-----------------------------插件管理----------------------------
+
+# 插件类型管理
+class PluginTypeHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/plugin_manager/plugin_type/pluginType_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        sql = "SELECT id,tpye_id,name,description,developer,pluginName,logtime from  t_plugin_type where state=1"
+
+        name = args["filter"]["search"]
+        if name is not None and name != "":
+            sql = sql + " and name like '%" + name.strip() + "%'"
+
+        offset = " ORDER BY logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+        datas = self.db.execute(sql + offset).fetchall()
+        lst = list()
+        for data in datas:
+            id = data[0]
+            tpye_id = data[1]
+            name = data[2]
+            description = data[3]
+            developer = data[4]
+            pluginName = data[5]
+            logtime = data[6].isoformat()
+
+            lst.append({"id": id, "tpye_id": tpye_id, "name": name, "id": id, "description": description,
+                        "developer": developer, "pluginName": pluginName, "logtime": logtime})
+        count = self.db.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db.close()
+
+
+class PluginTypeAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        name = args["name"]
+        pluginName = args["pluginName"]
+        description = args["description"]
+        developer = args["developer"]
+        if not name:
+            self.write_json(-1, "名称不能为空")
+            return
+        if not pluginName:
+            self.write_json(-1, "英文名不能为空")
+            return
+        if not description:
+            self.write_json(-1, "简介不能为空")
+            return
+        if not developer:
+            self.write_json(-1, "开发者不能为空")
+            return
+        type_id = self.db.query(func.max(PluginType.tpye_id)).scalar();
+
+        pt = PluginType()
+        pt.pluginName = pluginName
+        pt.name = name
+        pt.description = description
+        pt.developer = developer
+        pt.tpye_id = type_id + 1
+        pt.state = 1
+        self.db.add(pt)
+        try:
+            self.db.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db.close()
+
+
+class PluginTypeEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        id = args["id"]
+        name = args["name"]
+        pluginName = args["pluginName"]
+        description = args["description"]
+        developer = args["developer"]
+        if id is None:
+            self.write_json(-1, '系统错误')
+            return
+        try:
+            v_data = self.db.query(PluginType).filter(PluginType.id == id).first()
+
+            v_data.name = name
+            v_data.pluginName = pluginName
+            v_data.description = description
+            v_data.developer = developer
+            self.db.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "修改失败")
+        finally:
+            self.db.close()
+
+
+class PluginTypeDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            if args["parm"] is None:
+                self.write_json(-1, "系统错误")
+                return
+            parm = args["parm"][0]
+        try:
+            if parm["id"]:
+                count = self.db.query(PluginFile).filter(PluginFile.type_id == parm["type_id"],
+                                                         PluginFile.state == '1').count()
+                if count > 0:
+                    self.write_json(-1, "该类型被关联，不可删除")
+                    return
+                v_data = self.db.query(PluginType).filter(PluginType.id == parm["id"]).first()
+                v_data.state = 0
+                self.db.commit()
+                self.write_json(0, 'success')
+            else:
+                self.write_json(-1, "没有选中删除项")
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db.close()
+
+
+# 插件基础信息
+class PluginFileHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/plugin_manager/plugin_file/pluginFile_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        sql = "SELECT s.id,s.NAME ,t.`name` as type_name,s.pluginName,s.is_obs_stdio,s.platform_support,s.file_id,s.logtime FROM " \
+              "t_plugin_other_file_list s LEFT JOIN t_plugin_type t on t.tpye_id=s.type_id WHERE s.state=1"
+        offset = " ORDER BY s.logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+
+        obs_type = args["filter"]["obs-type"]
+        name = args["filter"]["search"]
+        obs_type = '0' if obs_type == "obs" else ('1' if obs_type == "obs-stdio" else "")
+        if name is not None and name != "":
+            sql = sql + " and s.name like '%" + name.strip() + "%' or s.file_id='" + name.strip() + "'"
+        if obs_type is not None and obs_type != "":
+            sql = sql + " and s.is_obs_stdio=" + obs_type
+
+        datas = self.db.execute(sql + offset).fetchall()
+        lst = list()
+        for data in datas:
+            id = data[0]
+            NAME = data[1]
+            type_name = data[2]
+            pluginName = data[3]
+            is_obs_stdio = ""
+            if data[4] is not None:
+                is_obs_stdio = "obs" if data[4] == 0 else "obs-stdio"
+            platform_support = data[5]
+            file_id = data[6]
+            logtime = data[7].isoformat()
+            lst.append({"id": id, "name": NAME, "type_name": type_name, "is_obs_stdio": is_obs_stdio,
+                        "platform_support": platform_support, "pluginName": pluginName, "file_id": file_id,
+                        "logtime": logtime})
+        count = self.db.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db.close()
+
+
+class PluginFileDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            if args["parm"] is None:
+                self.write_json(-1, "系统错误")
+                return
+            parm = args["parm"][0]
+        try:
+            if id:
+                count = self.db.query(PluginFileVersion).filter(PluginFileVersion.file_id == parm["file_id"],
+                                                                PluginFileVersion.state == '1').count()
+
+                if count > 0:
+                    self.write_json(-1, "改插件有关联版本，不可删除")
+                    return
+                v_data = self.db.query(PluginFile).filter(PluginFile.id == parm["id"]).first()
+                v_data.state = 0
+                self.db.commit()
+                self.write_json(0, 'success')
+            else:
+                self.write_json(-1, "没有选中删除项")
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db.close()
+
+
+class PluginFileUpdateHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+
+        key_file_name = args["key_file_name"]
+        name = args["name"]
+        type_id = args["type_id"]
+        is_obs_stdio = args["is_obs_stdio"]
+        platform_support = args["platform_support"]
+        intr_url = args["intr_url"]
+        description = args["description"]
+        pluginName = args["pluginName"]
+        file_id = args["file_id"]
+        id = args["id"]
+
+        if name is None:
+            self.write_json(-1, "插件名称不能为空")
+            return
+
+        if id != "" and id is not None:
+            v_data = self.db.query(PluginFile).filter(PluginFile.id == id).first()
+            if type_id and type_id != "":
+                v_data.type_id = int(type_id)
+            if is_obs_stdio and is_obs_stdio != "":
+                v_data.is_obs_stdio = int(is_obs_stdio)
+                v_data.platform_support = platform_support
+                v_data.intr_url = intr_url
+                v_data.description = description
+                v_data.pluginName = pluginName
+                v_data.key_file_name = key_file_name
+                v_data.name = name
+                v_data.state = 1
+        else:
+            data = self.db.query(PluginFile).filter(PluginFile.name == name).first()
+            if data is not None:
+                self.write_json(-1, "插件名称重复")
+                return
+
+            pf = PluginFile()
+            if type_id and type_id != "":
+                pf.type_id = int(type_id)
+            pf.file_id = file_id
+            # pf.file_id = "3349e2a8-bd3c-11e7-bbce-64006a93a0e3"
+            if is_obs_stdio and is_obs_stdio != "":
+                pf.is_obs_stdio = int(is_obs_stdio)
+            pf.platform_support = platform_support
+            pf.intr_url = intr_url
+            pf.description = description
+            pf.pluginName = pluginName
+            pf.state = 1
+            pf.key_file_name = key_file_name
+            pf.name = name
+            pf.version = "1.0"
+
+            # 新增插件时候添加一条版本数据
+            pv = PluginFileVersion()
+            pv.file_id = file_id
+            pv.state = 1
+
+            self.db.add(pf)
+            self.db.add(pv)
+        try:
+            self.db.commit()
+            self.write_json(0, "success")  # 将上传好的路径返回
+        except Exception as e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "修改失败")
+        finally:
+            self.db.close()
+
+
+class PluginFileSelectHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        plugintype = self.get_argument("plugintype", None)
+        sql = ["select file_id,name from t_plugin_other_file_list WHERE  state=1 "]
+        if plugintype:
+            sql.append(" and type_id={}".format(plugintype))
+        sqlstr = "".join(sql)
+        datas = self.db.execute(sqlstr)
+        lst = list()
+        for data in datas:
+            lst.append({"file_id": data[0], "name": data[1]})
+        self.write_raw_json(lst)
+        self.db.close()
+
+
+class PluginFileGet4IdHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id = self.get_argument("id", None)
+        data = self.db.query(PluginFile).filter(PluginFile.id == id).first()
+        lst = json.loads(json.dumps(data, cls=AlchemyEncoder))
+        self.write_raw_json(lst)
+        self.db.close()
+
+
+# 插件版本
+class PluginFileVersionHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/plugin_manager/plugin_file_version/PluginFileVersion_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+
+        limit, args = self.get_pages_args()
+        sql = "SELECT v.file_id,l.`name` as pluginName,l.version,t.`name` as typeName,l.is_obs_stdio,l.platform_support,v.id,v.logtime" \
+              ",v.file_name_x64,v.file_name_x86 FROM t_plugin_other_file_version v LEFT JOIN t_plugin_other_file_list l ON" \
+              " v.file_id = l.file_id  LEFT JOIN t_plugin_type t ON l.type_id = t.tpye_id WHERE v.state = 1"
+
+        obs_type = args["filter"]["obs-type"]
+        name = args["filter"]["search"]
+        obs_type = '0' if obs_type == "obs" else ('1' if obs_type == "obs-stdio" else "")
+        if name is not None and name != "":
+            sql = sql + " and l.name like '%" + name.strip() + "%' or v.file_id='" + name.strip() + "'"
+        if obs_type is not None and obs_type != "":
+            sql = sql + " and l.is_obs_stdio=" + obs_type
+
+        offset = " ORDER BY v.logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+
+        datas = self.db.execute(sql + offset).fetchall()
+
+        lst = list()
+        for data in datas:
+            file_id = data[0]
+            name = data[1]
+            version = data[2]
+            typeName = data[3]
+            is_obs_stdio = ""
+            if data[4] is not None:
+                is_obs_stdio = "obs" if data[4] == 0 else "obs-stdio"
+            platform_support = data[5]
+            id = data[6]
+            logtime = data[7].isoformat()
+            filex64 = data[8]
+            filex86 = data[9]
+
+            lst.append({"file_id": file_id, "name": name, "version": version,
+                        "type_name": typeName, "is_obs_stdio": is_obs_stdio, "id": id, "logtime": logtime,
+                        "platform_support": platform_support, "filex64": filex64, "filex86": filex86})
+        count = self.db.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db.close()
+
+
+class PluginFileVersionDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            id = args["id"]
+        try:
+            if id:
+                v_data = self.db.query(PluginFileVersion).filter(PluginFileVersion.id.in_(id)).all()
+                for d in v_data:
+                    d.state = 0
+                self.db.commit()
+                self.write_json(0, 'success')
+            else:
+                self.write_json(-1, "没有选中删除项")
+        except Exception as  e:
+            self.db.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db.close()
+
+
+# class PluginFileVersionAddHander(SwxJsonHandler):
+#
+#     @tornado.web.authenticated
+#     @tornado.gen.coroutine
+#     def post(self, *args, **kwargs):
+#         file_metas = self.request.files.get("file", None)  # 获取上传文件信息
+#         task_gen = self.get_argument("task_gen", None)
+#         file_id = self.get_argument("file_id", None)
+#         version = self.get_argument("version", None)
+#         v_data=self.db.query(PluginFile).filter(PluginFile.file_id==file_id).all()
+#         if v_data is None:
+#             self.write_json(-1,"找不到对应的插件")
+#             return
+#
+#         for d in v_data:
+#             if d.version == version:
+#                 self.write_json(-1,"版本号重复")
+#                 return
+#
+#         if not task_gen:
+#             self.write_json(-1, "系统错误")
+#             return
+#
+#         # count=self.db.query(PluginFileVersion).filter(PluginFileVersion.file_id==file_id).count()
+#         # if count>0:
+#         #     self.write_json(-1,"当前插件已有对应版本信息")
+#         #     return
+#
+#         upload = app_upManager.find_task(task_gen).uploadSSH
+#         if file_metas:
+#             for meta in file_metas:  # 循环文件信息
+#                 filename = meta['filename']
+#                 file_prex=str(int(time.time()))
+#                 file_dir_path=os.path.abspath(os.path.join(cfg.uploadPath, file_prex))
+#                 #先创建文件夹
+#                 if not os.path.exists(file_dir_path):
+#                     os.mkdir(file_dir_path)
+#                 #保存文件
+#                 file_path = os.path.abspath(os.path.join(file_dir_path,filename))  #文件路径
+#                 with open(file_path, 'wb') as up:
+#                     up.write(meta['body'])
+#                 #校验
+#                 if not zipfile.is_zipfile(file_path):
+#                     self.write_json(-1,"文件不是zip文件")
+#                     return
+#
+#                 if upload.key_Filevalid("DanmuGraphicsCapture.dll", file_path):
+#                     try:
+#                         path=upload.compression_file(file_path) #获取解压后文件夹
+#                         for d in v_data:
+#                             d.version = version                  #修改插件x86 x64 2个数据的版本信息
+#                         upload_fileName = "{}-x86-{}".format(file_id, filename)
+#                         file_urlx86 = yield self.uploadFile_task(upload, os.path.abspath(os.path.join(path, "x86.zip")),
+#                                                               upload_fileName)
+#
+#                         upload_fileName = "{}-x64-{}".format(file_id, filename)
+#                         file_urlx64 = yield self.uploadFile_task(upload, os.path.abspath(os.path.join(path, "x64.zip")),
+#                                                               upload_fileName)
+#                     except Exception as e:
+#                         self.write_json(-1, "文件上传失败，请重试")
+#                         return
+#
+#                     (filepathx86, tempfilenamex86) = os.path.split(file_urlx86)
+#                     (filepathx64, tempfilenamex64) = os.path.split(file_urlx64)
+#
+#                     p=PluginFileVersion()
+#                     p.file_id=file_id
+#                     p.file_name_x64=tempfilenamex64
+#                     p.file_name_x86=tempfilenamex86
+#                     p.state=1
+#
+#                     try:
+#                         self.db.add(p)
+#                         self.db.commit()
+#                         self.write_json(0)
+#                     except Exception as  e:
+#                         self.db.rollback()
+#                         log.e(e)
+#                         self.write_json(500, "添加失败")
+#                     finally:
+#                         self.db.close()
+#                 else:
+#                     self.write_json(-1,"关键文件校验失败")
+#                     return
+
+
+class PluginFileVersionUpdateHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        file_metas = self.request.files.get("file", None)  # 获取上传文件信息
+        task_gen = self.get_argument("task_gen", None)
+        file_id = self.get_argument("file_id", None)
+        version = self.get_argument("version", None)
+        id = self.get_argument("id", None)
+        v_data = self.db.query(PluginFile).filter(PluginFile.file_id == file_id).all()
+        if v_data is None:
+            self.write_json(-1, "找不到对应的插件")
+            return
+
+        for d in v_data:
+            if d.version == version:
+                self.write_json(-1, "版本号重复")
+                return
+
+        if not task_gen:
+            self.write_json(-1, "系统错误")
+            return
+
+        upload = app_upManager.find_task(task_gen).uploadSSH
+        if file_metas:
+            for meta in file_metas:  # 循环文件信息
+                filename = meta['filename']
+                file_prex = str(int(time.time()))
+                file_dir_path = os.path.abspath(os.path.join(cfg.uploadPath, file_prex))
+                # 先创建文件夹
+                if not os.path.exists(file_dir_path):
+                    os.mkdir(file_dir_path)
+                # 保存文件
+                file_path = os.path.abspath(os.path.join(file_dir_path, filename))  # 文件路径
+                with open(file_path, 'wb') as up:
+                    up.write(meta['body'])
+
+                fsize = os.path.getsize(file_path)
+                md5 = upload.get_md5(file_path)
+                # 校验
+                if upload.key_Filevalid("DanmuGraphicsCapture.dll", file_path):
+                    try:
+                        path = upload.compression_file(file_path)  # 获取解压后文件夹
+                        for d in v_data:
+                            d.version = version  # 修改插件x86 x64 2个数据的版本信息
+                            d.md5 = md5
+                            d.size = fsize
+
+                        upload_fileName = "{}-x86-{}".format(file_id, filename)
+                        file_urlx86 = yield self.uploadFile_task(upload, os.path.abspath(
+                            os.path.join(path, "x86.zip")),
+                                                                 upload_fileName)
+
+                        upload_fileName = "{}-x64-{}".format(file_id, filename)
+                        file_urlx64 = yield self.uploadFile_task(upload, os.path.abspath(
+                            os.path.join(path, "x64.zip")),
+                                                                 upload_fileName)
+                    except Exception as e:
+                        self.write_json(-1, "文件上传失败，请重试")
+                        return
+
+                    (filepathx86, tempfilenamex86) = os.path.split(file_urlx86)
+                    (filepathx64, tempfilenamex64) = os.path.split(file_urlx64)
+                    p = self.db.query(PluginFileVersion).filter(PluginFileVersion.id == id).first()
+                    p.file_name_x64 = tempfilenamex64
+                    p.file_name_x86 = tempfilenamex86
+                    p.state = 1
+                    try:
+
+                        self.db.commit()
+                        self.write_json(0)
+                    except Exception as  e:
+                        self.db.rollback()
+                        log.e(e)
+                        self.write_json(500, "添加失败")
+                    finally:
+                        self.db.close()
+                else:
+                    self.write_json(-1, "关键文件校验失败")
+                    return
+
+
+# 版本类型List
+class PluginTypeAllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        ptype_list = self.db.query(PluginType).filter(PluginType.state == '1').all()
+        lst = list()
+        for ptype in ptype_list:
+            lst.append(json.loads(json.dumps(ptype, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+        self.db.close()
+
+
+# 版本类型List
+class PluginPlatformAllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        pp_list = self.db.query(PluginPlatform).all()
+        lst = list()
+        for ptype in pp_list:
+            lst.append(json.loads(json.dumps(ptype, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+        self.db.close()
+
+
+# 插件平台map
+class PluginPlatformMapHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        ppf = self.db.query(PluginPlatform).all()
+        map = dict()
+        for p in ppf:
+            map.update({p.platformId: p.platformName})
+        self.write_raw_json(map)
+        self.db.close()
+
+
+class AdmRole4AllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        try:
+            results = self.db_adm.query(AdmRole).all()
+        except Exception as e:
+            log.e(e)
+            results = []
+        finally:
+            self.db_adm.close()
+        lst = list()
+        for ret in results:
+            lst.append(json.loads(json.dumps(ret, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+
+
+class UserEditHander(SwxJsonHandler):
+    @permision
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args')
+        if args:
+            args = json.loads(args)
+            user_id = args.get('user_id')
+            role_id = args.get('role_id')
+        self.db_adm.query(User).filter(User.user_id == user_id).update({
+            User.role_id: int(role_id)
+        })
+        try:
+            self.db_adm.commit()
+        except Exception as e:
+            self.db_adm.rollback()
+            log.e(e)
+            self.write_json(-1)
+            return
+        finally:
+            self.db_adm.close()
+        self.write_json(0)
+
+
+class UserDeleteHander(SwxJsonHandler):
+    @permision
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args')
+        if args:
+            args = json.loads(args)
+            user_id = args.get('user_id')
+        self.db_adm.query(User).filter(User.user_id == user_id).update({
+            User.enable: 0
+        })
+        try:
+            self.db_adm.commit()
+        except Exception as e:
+            self.db_adm.rollback()
+            log.e(e)
+            self.write_json(-1)
+            return
+        finally:
+            self.db_adm.close()
+        self.write_json(0)
+
+
+class AdmMenu4TreeHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        try:
+            results = self.db_adm.query(AdmMenu).all()
+        except Exception as e:
+            log.e(e)
+            results = []
+        finally:
+            self.db_adm.close()
+        head = ['id', 'pId', 'name']
+        lst = list()
+        for ret in results:
+            id = ret.menu_id
+            pId = ret.parent_id
+            name = ret.meun_name
+            lst.append(dict(zip(head, (id, pId, name))))
+        self.write_raw_json(lst)
+
+
+class RoleEditHander(SwxJsonHandler):
+    @permision
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        menu = self.get_arguments('menus')
+        role_id = self.get_argument('role_id')
+
+        # first 删除此角色 对应的 菜单信息
+        self.db_adm.query(AdmRoleMenu).filter(AdmRoleMenu.role_id == role_id). \
+            delete(synchronize_session=False)
+        for m in menu:
+            arm = AdmRoleMenu()
+            arm.role_id = role_id
+            arm.menu_id = m
+            arm.create_time = datetime.datetime.now()
+            self.db_adm.add(arm)
+        try:
+            self.db_adm.commit()
+        except Exception as e:
+            log.e(e)
+            self.db_adm.rollback()
+            self.write_json(-1)
+            return
+        finally:
+            self.db_adm.close()
+        self.write_json(0)
+
+
+class getRoleMenuByRoleIdHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        role_id = self.get_argument('role_id')
+
+        try:
+            results = self.db_adm.query(AdmRoleMenu).filter(AdmRoleMenu.role_id == role_id).all()
+        except Exception as e:
+            log.e(e)
+            self.db_adm.rallback()
+            self.db_adm.close()
+            results = []
+        finally:
+            self.db_adm.close()
+        data = list()
+        for u in results:
+            data.append(json.loads(json.dumps(u, cls=AlchemyEncoder)))
+        self.write_raw_json(data)

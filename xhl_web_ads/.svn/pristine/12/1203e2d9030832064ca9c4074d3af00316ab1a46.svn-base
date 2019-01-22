@@ -1,0 +1,322 @@
+function setPackSelect() {
+    $.get("/packinfo/select", function (ret) {
+            var auxArr = [];
+            $.each(ret, function (k, v) {
+                auxArr[k] = "<option value='" + v["package_id"] + "'>" + v["package_name"] + "</option>";
+            });
+            $('[id="package_id"]').append(auxArr.join(''));
+
+        }
+    );
+}
+
+function setAdsSelect() {
+    $.get("/adsinfo/select", function (ret) {
+            var auxArr = [];
+            $.each(ret, function (k, v) {
+                auxArr[k] = "<option value='" + v["ads_id"] + "'>" + v["ads_name"] + "</option>";
+            });
+            $("[id^='ads_id']").append(auxArr.join(''));
+
+        }
+    );
+}
+
+function setGroupInfoSelect() {
+    $.get("/groupinfo/select", function (ret) {
+            var auxArr = [];
+            $.each(ret, function (k, v) {
+                auxArr[k] = "<option value='" + v["ads_need_group_id"] + "'>" + v["group_name"] + "</option>";
+            });
+            $("[id^='group_id']").append(auxArr.join(''));
+
+        }
+    );
+}
+
+function init() {
+    setPackSelect();
+    setAdsSelect();
+    setGroupInfoSelect()
+}
+
+function createneedinfo() {
+    // var description = $('#description').val()
+    var package_id = $('#package_id').val()
+    var package_name=$("#package_id").find("option:selected").text()
+    var enable = $("input[name='enable']:checked").val();
+
+    if (!package_id || package_id == "") {
+        alert("套餐不能为空");
+        return;
+    }
+
+    if (!enable || enable == "") {
+        alert("请选择是否启用");
+        return;
+    }
+    // if (!description || description == "") {
+    //     alert("描述不能为空");
+    //     return;
+    // }
+    var parr = []
+    $.each($(":checkbox[name='position']:checked"), function () {
+        parr.push($(this).val());
+    });
+
+
+    var ads_arr = []
+    var position_arr = []
+    var ads_id1 = $("#ads_id1").val()
+    var ads_id2 = $("#ads_id2").val()
+    var ads_id3 = $("#ads_id3").val()
+    var ads_id4 = $("#ads_id4").val()
+    var ads_id5 = $("#ads_id5").val()
+    var ads_id6 = $("#ads_id6").val()
+    var ads_id7 = $("#ads_id7").val()
+    var ads_id8 = $("#ads_id8").val()
+
+    if (ads_id1 != "" && $.inArray('1', parr) >= 0) {
+        ads_arr.push(ads_id1);
+        var p1 = $("#position1").val();
+        if (!p1 || p1 == "" || p1 == undefined) {
+            alert("广告【1】的位置不能为空");
+            return;
+        }
+        position_arr.push(p1);
+    } else if ($.inArray('1', parr) >= 0) {
+        alert("广告【1】素材不能为空");
+        return
+    }
+
+    if (ads_id2 != "" && $.inArray('2', parr) >= 0) {
+        ads_arr.push(ads_id2);
+        var p2 = $("#position2").val();
+        if (!p2 || p2 == "" || p2 == undefined) {
+            alert("广告【2】的位置不能为空");
+            return;
+        }
+        position_arr.push(p2);
+    } else if ($.inArray('2', parr) >= 0) {
+        alert("广告【2】素材不能为空");
+        return
+    }
+    if (ads_id3 != "" && $.inArray('3', parr) >= 0) {
+        ads_arr.push(ads_id3);
+        var p3 = $("#position3").val();
+        if (!p3 || p3 == "" || p3 == undefined) {
+            alert("广告【3】的位置不能为空");
+            return;
+        }
+        position_arr.push(p3);
+    } else if ($.inArray('3', parr) >= 0) {
+        alert("广告【3】素材不能为空");
+        return
+    }
+    if (ads_id4 != "" && $.inArray('4', parr) >= 0) {
+        ads_arr.push(ads_id4);
+        var p4 = $("#position4").val();
+        if (!p4 || p4 == "" || p4 == undefined) {
+            alert("广告【4】的位置不能为空");
+            return;
+        }
+        position_arr.push(p4);
+    } else if ($.inArray('4', parr) >= 0) {
+        alert("广告【4】素材不能为空");
+    }
+
+    if (ads_id4 != "" && $.inArray('5', parr) >= 0) {
+        ads_arr.push(ads_id5);
+        var p5 = $("#position5").val();
+        if (!p5 || p5 == "" || p5 == undefined) {
+            alert("广告【5】的位置不能为空");
+            return;
+        }
+        position_arr.push(p5);
+    } else if ($.inArray('5', parr) >= 0) {
+        alert("广告【5】素材不能为空");
+        return
+    }
+    if (ads_id4 != "" && $.inArray('6', parr) >= 0) {
+        ads_arr.push(ads_id6);
+        var p6 = $("#position6").val();
+        if (!p6 || p6 == "" || p6 == undefined) {
+            alert("广告【6】的位置不能为空");
+            return;
+        }
+        position_arr.push(p6);
+    } else if ($.inArray('6', parr) >= 0) {
+        alert("广告【6】素材不能为空");
+        return
+    }
+
+    if (ads_id4 != "" && $.inArray('7', parr) >= 0) {
+        ads_arr.push(ads_id7);
+        var p7 = $("#position7").val();
+        if (!p7 || p7 == "" || p7 == undefined) {
+            alert("广告【7】的位置不能为空");
+            return;
+        }
+        position_arr.push(p7);
+    } else if ($.inArray('7', parr) >= 0) {
+        alert("广告【7】素材不能为空");
+        return
+    }
+    if (ads_id8 != "" && $.inArray('8', parr) >= 0) {
+        ads_arr.push(ads_id8);
+        var p8 = $("#position8").val();
+        if (!p8 || p8 == "" || p8 == undefined) {
+            alert("广告【8】的位置不能为空");
+            return;
+        }
+        position_arr.push(p8);
+    } else if ($.inArray('8', parr) >= 0) {
+        alert("广告【8】素材不能为空");
+        return
+    }
+    var ads_id = ads_arr.join(",");
+    var position = position_arr.join(",");
+
+    if (ads_id == "" || position == "") {
+        alert("广告位不能为空");
+        return
+    }
+    if (isRepeat(position_arr)) {
+        alert("广告位重复")
+        return;
+    }
+
+    var data = [];
+
+    var num = $(":checkbox[name^='groupInfo']:checked")
+    if (!num || num.length <= 0) {
+        alert("请勾选复选框并输入需求名称");
+        return
+    }
+
+
+    var groupInfoA = $(":checkbox[name='groupinfoA']").is(":checked");
+     groupInfoA = $("#groupInfoA").is(":checked");
+    var groupInfoS = $(":checkbox[name='groupInfoS']").is(":checked");
+    var groupInfoB = $(":checkbox[name='groupInfoB']").is(":checked");
+    var groupInfoC = $(":checkbox[name='groupInfoC']").is(":checked");
+    var groupInfoD = $(":checkbox[name='groupInfoD']").is(":checked");
+
+    if (groupInfoS == true) {
+        var need_name = package_name+"-S"
+        var need_play_type = $(":radio[name='need_play_typeS']:checked").val()
+        if (!need_play_type || need_play_type == "" || need_play_type == undefined) {
+            alert("S级播放类型不能为空")
+        }
+
+        var d = {
+            "ads_id": ads_id,
+            "position": position,
+            "description": package_name,
+            "package_id": package_id,
+            "need_play_type": need_play_type,
+            "enable": enable,
+            "need_name": need_name,
+            "anchor_level": "S"
+        }
+        data.push(d);
+    }
+    if (groupInfoA == true) {
+        var need_name = package_name+"-A"
+        var need_play_type = $(":radio[name='need_play_typeA']:checked").val()
+        if (!need_play_type || need_play_type == "" || need_play_type == undefined) {
+            alert("A级播放类型不能为空")
+        }
+
+        var d = {
+            "ads_id": ads_id,
+            "position": position,
+            "description": package_name,
+            "package_id": package_id,
+            "need_play_type": need_play_type,
+            "enable": enable,
+            "need_name": need_name,
+            "anchor_level": "A"
+        }
+        data.push(d);
+    }
+    if (groupInfoB == true) {
+        var need_name = package_name+"-B"
+        var need_play_type = $(":radio[name='need_play_typeB']:checked").val()
+        if (!need_play_type || need_play_type == "" || need_play_type == undefined) {
+            alert("B级播放类型不能为空")
+        }
+
+        var d = {
+            "ads_id": ads_id,
+            "position": position,
+            "description": package_name,
+            "package_id": package_id,
+            "enable": enable,
+            "need_name": need_name,
+            "need_play_type": need_play_type,
+            "anchor_level": "B"
+        }
+        data.push(d);
+    }
+    if (groupInfoC == true) {
+        var need_name = package_name+"-C"
+        var need_play_type = $(":radio[name='need_play_typeC']:checked").val()
+        if (!need_play_type || need_play_type == "" || need_play_type == undefined) {
+            alert("C级播放类型不能为空")
+        }
+
+        var d = {
+            "ads_id": ads_id,
+            "position": position,
+            "description": package_name,
+            "package_id": package_id,
+            "need_play_type": need_play_type,
+            "enable": enable,
+            "need_name": need_name,
+            "anchor_level": "C"
+        }
+        data.push(d);
+    }
+    if (groupInfoD == true) {
+        var need_name = package_name+"-D"
+        var need_play_type = $(":radio[name='need_play_typeD']:checked").val()
+        if (!need_play_type || need_play_type == "" || need_play_type == undefined) {
+            alert("D级播放类型不能为空")
+        }
+
+        var d = {
+            "ads_id": ads_id,
+            "position": position,
+            "description": package_name,
+            "package_id": package_id,
+            "need_play_type": need_play_type,
+            "enable": enable,
+            "need_name": need_name,
+            "anchor_level": "D"
+        }
+        data.push(d);
+    }
+
+    if (data.length > 0) {
+        $.ajax({
+            type: "POST",
+            url: "/needinfo/toadd",
+            data: {"param": JSON.stringify(data)},
+            success: function (msg) {
+                if (msg.code == 0) {
+                    alert("批量创建需求成功");
+                } else {
+                    alert("批量创建需求失败," + msg.message);
+                }
+            },
+            error: function () {
+                alert("网络故障，批量创建需求失败");
+            }
+        });
+    } else {
+        alert("还没有选择任何等级复选框");
+        return;
+    }
+}
+

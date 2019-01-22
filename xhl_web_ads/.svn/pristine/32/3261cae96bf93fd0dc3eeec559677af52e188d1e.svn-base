@@ -1,0 +1,585 @@
+var v_dlg=null
+ function show_adsInfo(id) {
+     $.get("/needinfo/getadsinfo?id="+id,function (ret) {
+
+         $('#ads_name').val(ret.ads_name);
+         $('#ads_contents').val(ret.ads_contents);
+         $('#ads_time').val(ret.ads_time);
+         $('#ads_materialurl').val(ret.ads_materialurl);
+         var url = 'http://download.xiaohulu.com/obs/adsdownload/' + ret.ads_id + "/" + ret.ads_thumbnailurl
+         var movieurl = 'http://download.xiaohulu.com/obs/adsdownload/' + ret.ads_id + "/" + ret.ads_materialurl
+         $('#downMovieBt').attr("url", movieurl);
+         $('#ads_thumbnailurl').attr("src", url);
+         $("#preview").attr("src", "");
+         $("#dialog-adsinfo-info").modal()
+
+     })
+    }
+
+  function downloadMovie(that) {
+     var  url=$(that).attr("url");
+      if(url){
+          window.open(url);
+      }else{
+          alert("没有视频文件");
+      }
+  }
+
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#needinfo-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='needinfo-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/needinfo/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {title: "need_id", key: "need_id",width: 30},
+            {title: "需求名称", key: "need_name",width: 30},
+            {title: "套餐名称", key: "package_name",width: 50},
+            {title: "播放类型", key: "need_play_type",width: 10,render: 'format_playtype',
+                fields: {need_play_type: 'need_play_type'}},
+            {title: "广告级别", key: "anchor_level",width: 10},
+            {title: "广告位 ", key: "position",width: 10},
+            {title: "ads_id", key: "ads_id",width: 10,render: 'format_ads',
+                fields: {ads_id: 'ads_id'}},
+            {title: "是否启用", key: "enable",width: 10,render: 'format_enable',
+                fields: {enable: 'enable'}},
+            {title: "描述", key: "description",width: 10},
+            {
+                title: "日志时间", key: "logtime", width: 180, render: 'format_time',
+                fields: {logtime: 'logtime'}
+            },
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'id', protocol: 'id'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+
+
+    var host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    //初始化素材下拉框
+    $.get("/adsinfo/select", function (ret) {
+            var auxArr = [];
+            $.each(ret, function (k, v) {
+                auxArr[k] = "<option value='" + v["ads_id"] + "'>" + v["ads_name"] + "</option>";
+            });
+            $('#ads_id1').append(auxArr.join(''));
+            $('#ads_id2').append(auxArr.join(''));
+            $('#ads_id3').append(auxArr.join(''));
+            $('#ads_id4').append(auxArr.join(''));
+            $('#ads_id5').append(auxArr.join(''));
+            $('#ads_id6').append(auxArr.join(''));
+            $('#ads_id7').append(auxArr.join(''));
+            $('#ads_id8').append(auxArr.join(''));
+        }
+    );
+
+    $.get("/packinfo/select", function (ret) {
+            var auxArr = [];
+            $.each(ret, function (k, v) {
+                auxArr[k] = "<option value='" + v["package_id"] + "'>" + v["package_name"] + "</option>";
+            });
+            $('#package_id').append(auxArr.join(''));
+
+        }
+    );
+
+    $("#btn-delete-host").click(function () {
+        var vtype_list = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                vtype_list.push(_row_data.need_id);
+            }
+        });
+
+        if (vtype_list.length === 0) {
+            ywl.notify_error('请选择要批量删除的需求！');
+            return;
+        }
+
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/needinfo/delete', {ids: vtype_list}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('删除成功！');
+                    } else {
+                        ywl.notify_error('删除失败！'+ ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，删除失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要删除选定的需求吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+    v_dlg = ywl.create_needinfo_infodlg(host_table);
+
+    $("#btn-add-host").click(function () {
+        $("#needinfo-list-action")[0].reset()
+         v_dlg.create_show();
+    })
+
+
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='search']");
+
+
+
+
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+ywl.create_needinfo_infodlg = function (tbl) {
+    var needinfo_infodlg = {};
+    needinfo_infodlg.dom_id = "#dialog-needinfo-info";
+    needinfo_infodlg.update = 1;
+    needinfo_infodlg.tbl = tbl;
+    needinfo_infodlg.package_id = '';
+    needinfo_infodlg.need_play_type = 0;
+    needinfo_infodlg.anchor_level = 0;
+    needinfo_infodlg.position = 0;
+    needinfo_infodlg.ads_id = 0;
+    needinfo_infodlg.need_name = 0;
+    needinfo_infodlg.enable = 0;
+    needinfo_infodlg.description = 0;
+    needinfo_infodlg.row_id = 0;
+
+    needinfo_infodlg.update_show = function (package_id, need_play_type,anchor_level,position,ads_id,need_name,enable,description,row_id) {
+        needinfo_infodlg.update = 1;
+        needinfo_infodlg.init(package_id, need_play_type,anchor_level,position, ads_id,need_name,enable,description,row_id);
+        $('#dlg-notice').hide();
+        $(needinfo_infodlg.dom_id).modal();
+    };
+
+    needinfo_infodlg.create_show = function () {
+        needinfo_infodlg.update = 0;
+        needinfo_infodlg.init('','','','','','','','',0);
+        $('#dlg-notice').show();
+        $(needinfo_infodlg.dom_id).modal();
+    };
+
+    needinfo_infodlg.hide = function () {
+        $(needinfo_infodlg.dom_id).modal('hide');
+    };
+
+    needinfo_infodlg.init = function (package_id, need_play_type ,anchor_level,position, ads_id,need_name,enable,description,row_id) {
+        needinfo_infodlg.package_id = package_id;
+        needinfo_infodlg.need_play_type = need_play_type;
+        needinfo_infodlg.anchor_level = anchor_level;
+        needinfo_infodlg.position = position;
+        needinfo_infodlg.ads_id = ads_id;
+        needinfo_infodlg.need_name = need_name;
+        needinfo_infodlg.enable = enable;
+        needinfo_infodlg.description = description;
+        needinfo_infodlg.row_id = row_id;
+        needinfo_infodlg.init_dlg();
+    };
+    needinfo_infodlg.init_dlg = function () {
+        $(needinfo_infodlg.dom_id + ' #package_id').val(needinfo_infodlg.package_id);
+        $(":radio[name='need_play_type'][value='" + needinfo_infodlg.need_play_type + "']").prop("checked", "checked");
+        $(":radio[name='anchor_level'][value='" + needinfo_infodlg.anchor_level + "']").prop("checked", "checked");
+
+        //清空checkbox
+        $('input:checkbox').each(function () {
+            $(this).prop('checked', false);
+        })
+        $("[id^='position']").each(function () {
+            $(this).val("");
+        })
+        var parr=[]
+        if(needinfo_infodlg.position){
+            parr=needinfo_infodlg.position.split(",");
+            for(var i in parr){
+                var index=parseInt(i)+1
+                $("#position"+index).val(parr[i]);
+            }
+        }
+        //清空select
+        $("select[id^='ads_id']").val("");
+        if(needinfo_infodlg.ads_id){
+            var arr=needinfo_infodlg.ads_id.split(",");
+            for(var i in arr){
+                var index =parseInt(i)+1
+                $("#ads_id"+index).val(arr[i]);
+                $(":checkbox[name='position'][value='" + index + "']").prop("checked", "checked");
+            }
+        }
+
+        //是否启用
+        $(":radio[name='enable'][value='"+needinfo_infodlg.enable+"']").prop("checked","checked");
+         $("#description").val(needinfo_infodlg.description);
+         $("#need_name").val(needinfo_infodlg.need_name);
+
+    };
+
+    needinfo_infodlg.check_args = function () {
+        var need_name=$(needinfo_infodlg.dom_id + ' #need_name').val()
+        var description=$(needinfo_infodlg.dom_id + ' #description').val()
+        var package_id=$(needinfo_infodlg.dom_id + ' #package_id').val()
+        var anchor_level=$("input[name='anchor_level']:checked").val();
+        var need_play_type=$("input[name='need_play_type']:checked").val();
+        var enable=$("input[name='enable']:checked").val();
+
+        if (!need_name || need_name == "") {
+            alert("需求名称不能为空");
+            return;
+        }
+        if (!package_id || package_id == "") {
+            alert("套餐不能为空");
+            return;
+        }
+        if (!need_play_type || need_play_type == "") {
+            alert("广告类型不能为空");
+            return;
+        }
+        if (!anchor_level || anchor_level == "") {
+            alert("广告等级不能为空");
+            return;
+        }
+        if (!enable || enable == "") {
+            alert("请选择是否启用");
+            return;
+        }
+        if (!description || description == "") {
+            alert("描述不能为空");
+            return;
+        }
+        var parr=[]
+        $.each($(":checkbox[name='position']:checked"),function () {
+           parr.push($(this).val());
+        });
+
+
+
+        var ads_arr=[]
+        var position_arr=[]
+        var ads_id1=$("#ads_id1").val()
+        var ads_id2=$("#ads_id2").val()
+        var ads_id3=$("#ads_id3").val()
+        var ads_id4=$("#ads_id4").val()
+        var ads_id5=$("#ads_id5").val()
+        var ads_id6=$("#ads_id6").val()
+        var ads_id7=$("#ads_id7").val()
+        var ads_id8=$("#ads_id8").val()
+
+        if(ads_id1!=""&&$.inArray('1', parr)>=0){
+            ads_arr.push(ads_id1);
+            var p1=$("#position1").val();
+            if(!p1||p1==""||p1==undefined){
+                alert("广告【1】的位置不能为空");
+                return;
+            }
+            position_arr.push(p1);
+        }else {
+            alert("广告【1】素材不能为空");
+            return
+        }
+
+        if(ads_id2!=""&&$.inArray('2', parr)>=0){
+            ads_arr.push(ads_id2);
+             var p2=$("#position2").val();
+            if(!p2||p2==""||p2==undefined){
+                alert("广告【2】的位置不能为空");
+                return;
+            }
+            position_arr.push(p2);
+        }else {
+            alert("广告【2】素材不能为空");
+            return
+        }
+        if(ads_id3!=""&&$.inArray('3', parr)>=0){
+            ads_arr.push(ads_id3);
+             var p3=$("#position3").val();
+            if(!p3||p3==""||p3==undefined){
+                alert("广告【3】的位置不能为空");
+                return;
+            }
+            position_arr.push(p3);
+        }else {
+            alert("广告【3】素材不能为空");
+            return
+        }
+        if(ads_id4!=""&&$.inArray('4', parr)>=0){
+            ads_arr.push(ads_id4);
+             var p4=$("#position4").val();
+            if(!p4||p4==""||p4==undefined){
+                alert("广告【4】的位置不能为空");
+                return;
+            }
+            position_arr.push(p4);
+        }else {
+            alert("广告【4】素材不能为空");
+        }
+
+        if(ads_id4!=""&&$.inArray('5', parr)>=0){
+            ads_arr.push(ads_id5);
+             var p5=$("#position5").val();
+            if(!p5||p5==""||p5==undefined){
+                alert("广告【5】的位置不能为空");
+                return;
+            }
+            position_arr.push(p5);
+        }else {
+            alert("广告【5】素材不能为空");
+            return
+        }
+        if(ads_id4!=""&&$.inArray('6', parr)>=0){
+            ads_arr.push(ads_id6);
+             var p6=$("#position6").val();
+            if(!p6||p6==""||p6==undefined){
+                alert("广告【6】的位置不能为空");
+                return;
+            }
+            position_arr.push(p6);
+        }else {
+            alert("广告【6】素材不能为空");
+            return
+        }
+
+        if(ads_id4!=""&&$.inArray('7', parr)>=0){
+            ads_arr.push(ads_id7);
+             var p7=$("#position7").val();
+            if(!p7||p7==""||p7==undefined){
+                alert("广告【7】的位置不能为空");
+                return;
+            }
+            position_arr.push(p7);
+        }else {
+            alert("广告【7】素材不能为空");
+            return
+        }
+        if(ads_id8!=""&&$.inArray('8', parr)>=0){
+            ads_arr.push(ads_id8);
+             var p8=$("#position8").val();
+            if(!p8||p8==""||p8==undefined){
+                alert("广告【8】的位置不能为空");
+                return;
+            }
+            position_arr.push(p8);
+        }else {
+            alert("广告【8】素材不能为空");
+            return
+        }
+        var ads_id=ads_arr.join(",");
+        var position=position_arr.join(",");
+
+        if(ads_id==""||position==""){
+            alert("广告位不能为空");
+            return
+        }
+        if(isRepeat(position_arr)){
+            alert("广告位重复")
+            return;
+        }
+
+        needinfo_infodlg.package_id = package_id;
+        needinfo_infodlg.need_play_type = need_play_type;
+        needinfo_infodlg.anchor_level = anchor_level
+        needinfo_infodlg.position = position
+        needinfo_infodlg.ads_id = ads_id
+        needinfo_infodlg.need_name = need_name;
+        needinfo_infodlg.enable = enable;
+        needinfo_infodlg.description = description;
+
+        return true;
+    };
+    needinfo_infodlg.post = function () {
+        if (needinfo_infodlg.update === 1) {
+            ywl.ajax_post_json('/needinfo/edit', {package_id: needinfo_infodlg.package_id, need_play_type: needinfo_infodlg.need_play_type,
+                    need_name: needinfo_infodlg.need_name,
+                    enable: needinfo_infodlg.enable,
+                    description: needinfo_infodlg.description,
+                    anchor_level: needinfo_infodlg.anchor_level,
+                    position: needinfo_infodlg.position,
+                    ads_id: needinfo_infodlg.ads_id,
+                    id: needinfo_infodlg.row_id
+                },
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        needinfo_infodlg.tbl.reload();
+                        ywl.notify_success('更新成功！');
+                        needinfo_infodlg.hide();
+                    } else {
+                        ywl.notify_error('更新失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，更新失败！');
+                }
+            );
+        } else {
+            ywl.ajax_post_json('/needinfo/add', {package_id: needinfo_infodlg.package_id, need_play_type: needinfo_infodlg.need_play_type,
+                    anchor_level: needinfo_infodlg.anchor_level,
+                    need_name: needinfo_infodlg.need_name,
+                    enable: needinfo_infodlg.enable,
+                    description: needinfo_infodlg.description,
+                    position: needinfo_infodlg.position,
+                    ads_id: needinfo_infodlg.ads_id
+                },
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        needinfo_infodlg.tbl.reload();
+                        ywl.notify_success('添加成功！');
+                        needinfo_infodlg.hide();
+                    }  else {
+                        ywl.notify_error('添加失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，添加失败！');
+                }
+            );
+
+        }
+        return true;
+    };
+    $(needinfo_infodlg.dom_id + " #btn-save").click(function () {
+        if (!needinfo_infodlg.check_args()) {
+            return;
+        }
+        needinfo_infodlg.post();
+    });
+    return needinfo_infodlg
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        }else if (col_key==="action"){
+            var row_data = tbl.get_row(row_id);
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+
+                $.get("/needinfo/get?id="+row_data.need_id, function (ret) {
+                   v_dlg.update_show(ret.package_id, ret.need_play_type ,
+                       ret.anchor_level,ret.position, ret.ads_id,ret.need_name,ret.enable,ret.description,ret.need_id)
+                } );
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+
+                // if (fields.ret_code === 9999 && fields.cost_time > 0) {
+                    ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">修改</a>&nbsp');
+                    // ret.push('<a href="javascript:;" class="btn btn-sm btn-success" protocol=' + fields.protocol + ' ywl-btn-delete="' + fields.ID + '">删除</a>&nbsp');
+                // }
+
+
+            return ret.join('');
+        }
+         render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T"," ") + ' </span>';
+        };
+
+        render.format_playtype = function (row_id, fields) {
+            return fields.need_play_type==1?"大广告":fields.need_play_type==2?"角标播放":"";
+        };
+        render.format_alloc_type = function (row_id, fields) {
+
+            return fields.need_alloc_type==1?"可以重复":fields.need_alloc_type==2?"不可重复":"";
+        };
+
+        render.format_ads = function (row_id, fields) {
+            var temp=[]
+            if(fields.ads_id){
+                var arr=fields.ads_id.split(",");
+                for(var i in arr){
+                    temp.push('<a href="javascript:void(0)" onclick="show_adsInfo('+arr[i]+')">【'+arr[i]+'】</a>')
+                }
+            }
+            return temp.join("  ");
+        };
+
+        render.format_enable = function (row_id, fields) {
+            return fields.enable==1?"启用":fields.enable==0?"禁用":"";
+        };
+    };
+};
+
+
+

@@ -1,0 +1,255 @@
+# -*- coding: utf-8 -*-
+
+import os, json, time, binascii
+import mako.lookup
+import mako.template
+import tornado.web
+from eom_app.app.session import swx_session
+from tornado.escape import json_encode
+from eom_app.orm.db import app_db
+from eom_common.eomcore.logger import log
+from concurrent.futures import ThreadPoolExecutor
+from tornado.concurrent import run_on_executor
+from urllib.parse import quote
+
+
+class SwxBaseHandler(tornado.web.RequestHandler):
+    executor = ThreadPoolExecutor(10)
+
+    _sessionfactory = None
+    _sessionfactory_ads = None
+    _sessionfactory_wealth = None
+    _sessionfactory_wealth2 = None
+    _sessionfactory_guild = None
+    _sessionfactory_detect = None
+    _sessionfactory_ads_entourage = None
+    _sessionfactory_ads_adm = None
+    _sessionfactory_ads_plat = None
+
+    @property
+    def db(self):
+        if not self._sessionfactory:
+            self._sessionfactory = app_db().get_DBSession()
+        return self._sessionfactory
+
+    @property
+    def db_ads(self):
+        if not self._sessionfactory_ads:
+            self._sessionfactory_ads = app_db().get_Ads_DBSession()
+        return self._sessionfactory_ads
+
+    @property
+    def db_wealth(self):
+        if not self._sessionfactory_wealth:
+            self._sessionfactory_wealth = app_db().get_Wealth_DBSession()
+        return self._sessionfactory_wealth
+
+    @property
+    def db_wealth2(self):
+        if not self._sessionfactory_wealth2:
+            self._sessionfactory_wealth2 = app_db().get_Wealth_DBSession2()
+        return self._sessionfactory_wealth2
+
+    @property
+    def db_guild(self):
+        if not self._sessionfactory_guild:
+            self._sessionfactory_guild = app_db().get_guild_DBSession()
+        return self._sessionfactory_guild
+
+    @property
+    def db_detect(self):
+        if not self._sessionfactory_detect:
+            self._sessionfactory_detect = app_db().get_detect_DBSession()
+        return self._sessionfactory_detect
+
+    @property
+    def db_entourage(self):
+        if not self._sessionfactory_ads_entourage:
+            self._sessionfactory_ads_entourage = app_db().get_entourage_DBSession()
+        return self._sessionfactory_ads_entourage
+
+    @property
+    def db_adm(self):
+        if not self._sessionfactory_ads_adm:
+            self._sessionfactory_ads_adm = app_db().get_adm_DBSession()
+        return self._sessionfactory_ads_adm
+
+    @property
+    def db_plat(self):
+        if not self._sessionfactory_ads_plat:
+            self._sessionfactory_ads_plat = app_db().get_plat_DBSession()
+        return self._sessionfactory_ads_plat
+
+    def __init__(self, application, request, **kwargs):
+        super().__init__(application, request, **kwargs)
+        self._s_id = None
+        self._s_val = dict()
+
+    def initialize(self):
+        template_path = self.get_template_path()
+        self.lookup = mako.lookup.TemplateLookup(directories=[template_path], input_encoding='utf-8',
+                                                 output_encoding='utf-8')
+
+    def render_string(self, template_name, **kwargs):
+        template = self.lookup.get_template(template_name)
+        namespace = self.get_template_namespace()
+        namespace.update(kwargs)
+        return template.render(**namespace)
+
+    def render(self, template_path, **kwargs):
+        self.finish(self.render_string(template_path, **kwargs))
+
+    def prepare(self):
+
+        if self.application.settings.get("xsrf_cookies"):
+            x = self.xsrf_token
+
+        self._s_id = self.get_cookie('_sid')
+        if self._s_id is None:
+            self._s_id = 'ywl_{}_{}'.format(int(time.time()), binascii.b2a_hex(os.urandom(8)).decode())
+            self.set_cookie('_sid', self._s_id)
+            swx_session().add(self._s_id, self._s_val)
+        else:
+            self._s_val = swx_session().get(self._s_id)
+            if self._s_val is None:
+                self._s_val = dict()
+                swx_session().add(self._s_id, self._s_val)
+
+    def set_session(self, name, value):
+        self._s_val[name] = value
+        swx_session().set(self._s_id, self._s_val)
+
+    def get_session(self, name, default=None):
+        if name in self._s_val:
+            return self._s_val[name]
+        else:
+            return default
+
+    def del_session(self, name):
+        if name in self._s_val:
+            del self._s_val[name]
+
+    def get_current_user(self):
+        user = self.get_session(self._s_id)
+        return user
+
+    def params(self, key, defalut_value='', with_join=False):
+        """
+        :func 获取参数值，多个参数值可以list，或者‘,’分割都字符串
+        :param key: 参数名
+        :param defalut_value:默认返回值
+        :param with_join: 是否使用','合并参数值
+        :return: 参数值
+        """
+        try:
+            args = self.get_argument(key)
+            if len(args) > 1:
+                return ','.join(str(i) for i in args) if with_join else args
+                return args[0]
+        except Exception as e:
+            return defalut_value
+
+    def get_pages_args(self):
+        limit = dict()
+        limit['page_index'] = 0
+        limit['per_page'] = 25
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        if 'limit' in args:
+            _limit = args['limit']
+            if _limit['page_index'] < 0:
+                _limit['page_index'] = 0
+            if _limit['per_page'] < 10:
+                _limit['per_page'] = 10
+            if _limit['per_page'] > 100:
+                _limit['per_page'] = 100
+            limit.update(_limit)
+        return limit, args
+
+    def set_page_params(self, count, limit, lst):
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        return ret
+
+    @run_on_executor
+    def upload_task(self, upload, meta, remotePath, fileName):
+        down_url = upload.uploadFile(meta, remotePath, fileName)
+        return down_url
+
+
+class SwxJsonpHandler(SwxBaseHandler):
+    def __init__(self, application, request, **kwargs):
+        super().__init__(application, request, **kwargs)
+
+        self._js_callback = ''
+
+    def prepare(self):
+        super().prepare()
+
+        self._js_callback = self.get_argument('callback', None)
+        if self._js_callback is None:
+            raise RuntimeError('no callback in URL param.')
+
+    def write_jsonp(self, err_code, data=None):
+
+        self.write(self._js_callback)
+        self.write('({code:')
+        self.write('{}'.format(err_code))
+
+        if data is None:
+            self.write('})')
+            return
+
+        if not isinstance(data, dict):
+            raise RuntimeError('jsonp data should be dict.')
+
+        self.write(',data:')
+        self.write(json_encode(data))
+        self.write('})')
+
+
+class SwxJsonHandler(SwxBaseHandler):
+    """
+    所有返回JSON数据的控制器均从本类继承，返回的数据格式一律包含三个字段：code/msg/data
+    code: 0=成功，其他=失败
+    msg: 字符串，一般用于code为非零是，指出错误原因
+    data: 一般用于成功操作的返回的业务数据
+    """
+
+    def __init__(self, application, request, **kwargs):
+        super().__init__(application, request, **kwargs)
+
+    def write_json(self, code, message='', data=None):
+        if not isinstance(code, int):
+            raise RuntimeError('`code` must be a integer.')
+        if not isinstance(message, str):
+            raise RuntimeError('`msg` must be a string.')
+
+        if data is None:
+            data = list()
+
+        _ret = {'code': code, 'message': message, 'data': data}
+
+        self.set_header("Content-Type", "application/json")
+        self.write(json_encode(_ret))
+
+    def write_raw_json(self, data=None):
+
+        if data is None:
+            data = list()
+
+        self.set_header("Content-Type", "application/json")
+        self.write(json_encode(data))
+
+    def write_file(self, file_url, filename):
+        self.set_header('Content-Type', 'application/x-xls')
+        self.set_header('Content-Disposition', 'attachment; filename=' + filename)
+        while True:
+            data = file_url.read(2048)
+            if not data:
+                break
+            self.write(data)
+        self.finish()

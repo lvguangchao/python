@@ -1,0 +1,514 @@
+var v_dlg=null
+var platformMap=null    //用来转换platform
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#pluginFile-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='pluginFile-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/pluginFile/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {title: "ID", key: "id",width: 30},
+            {title: "文件ID", key: "file_id",width: 30},
+            {title: "插件名称", key: "name",width: 50},
+            {title: "插件英文简称", key: "pluginName",width: 10},
+            {title: "插件类型", key: "type_name",width: 10},
+            {title: "直播软件", key: "is_obs_stdio",width: 10},
+            {title: "直播平台", key: "platform_support",width: 10, render: 'format_platform',
+                fields: {platform_support: 'platform_support'}},
+            {
+                title: "日志时间", key: "logtime", width: 180, render: 'format_time',
+                fields: {logtime: 'logtime'}
+            },
+            {
+                title: "操作",
+                key: "action",
+                width: 50,
+                header_align: 'left', cell_align: 'left',
+                render: 'make_action_btn',
+                fields: {ID: 'id', protocol: 'id'}
+            }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+    var host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+
+       //初始本类型选择框
+     $.get("/pluginType/all", function (ret) {
+         var auxArr = [];
+         $.each(ret, function(k, v){
+                      auxArr[k] = "<option value='" + v["tpye_id"] + "'>" + v["name"] + "</option>";
+                });
+         $('#type_id').append(auxArr.join(''));
+        }
+     );
+       //初始化平台复选框
+    $.get("/pluginPlatform/all", function (ret) {
+            var auxArr = [];
+            $.each(ret, function (k, v) {
+                auxArr[k] = '<input type="checkbox" name="platform_support" value="' + v["platformId"] + '"/>' + v["platformName"] + '';
+            });
+            $('#plat_checkbox').append(auxArr.join(''));
+
+            //绑定全选，全不选事件
+            $("[type='checkbox'][name='platform_support'][value='0']").on('click',function () {
+                    if ($(this).is(':checked')) {
+                        $("input[type='checkbox'][name='platform_support']").prop("checked", "true")
+                    } else {
+                        $("input[type='checkbox'][name='platform_support']").removeAttr("checked")
+                    }
+                }
+            )
+
+        }
+    );
+
+    //富文本
+     $('#description').summernote({
+        placeholder: '插件描述#',
+        tabsize: 2,
+        height: 100
+      });
+
+    $("#btn-delete-host").click(function () {
+        var ids = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                ids.push({id:_row_data.id,file_id:_row_data.file_id});
+            }
+        });
+
+        if (ids.length === 0) {
+            ywl.notify_error('请选择要批量删除的版本！');
+            return;
+        } else if (ids.length>1){
+             ywl.notify_error('仅支持单个删除！');
+            return;
+        }
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/pluginFile/delete', {parm: ids}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('删除成功！');
+                    } else {
+                        ywl.notify_error('删除失败！'+ ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，删除失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要删除选定的插件吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+    v_dlg = ywl.create_pluginFile_info_dlg(host_table);
+
+    $("#btn-add-host").click(function () {
+         v_dlg.create_show();
+    })
+
+     $.ajax({
+        type: "get",
+        url: "/pluginPlatform/map",
+        cache: true,
+        success: function (ret) {
+                platformMap = ret
+            ywl.create_table_filter_user_list(host_table, dom_id + " [ywl-filter='obs-type']");
+            ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='search']");
+            cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+        }
+
+    });
+
+};
+
+
+ywl.create_pluginFile_info_dlg = function (tbl) {
+    var pluginFile_info_dlg = {};
+    pluginFile_info_dlg.dom_id = "#dialog-pluginFile-info";
+    pluginFile_info_dlg.update = 1;
+    pluginFile_info_dlg.tbl = tbl;
+    pluginFile_info_dlg.name = '';
+    pluginFile_info_dlg.pluginName = '';
+    pluginFile_info_dlg.type_id = '';
+    pluginFile_info_dlg.is_obs_stdio = '';
+    pluginFile_info_dlg.platform_support = '';
+    pluginFile_info_dlg.key_file_name = '';
+    pluginFile_info_dlg.intr_url = '';
+    pluginFile_info_dlg.description = '';
+    pluginFile_info_dlg.file_id = '';
+    pluginFile_info_dlg.row_id = '';
+
+    pluginFile_info_dlg.update_show = function (name, pluginName, type_id,is_obs_stdio,platform_support,intr_url,description,key_file_name,file_id,row_id) {
+        pluginFile_info_dlg.update = 1;
+        pluginFile_info_dlg.init(name, pluginName, type_id,is_obs_stdio,platform_support,intr_url,description,key_file_name,file_id,row_id);
+        $('#dlg-notice').hide();
+        $(pluginFile_info_dlg.dom_id).modal();
+    };
+
+    pluginFile_info_dlg.create_show = function () {
+        pluginFile_info_dlg.update = 0;
+        pluginFile_info_dlg.init('', '', '','','','','','',guid(), '');
+        $('#dlg-notice').show();
+        $(pluginFile_info_dlg.dom_id).modal();
+    };
+
+    pluginFile_info_dlg.hide = function () {
+        $(pluginFile_info_dlg.dom_id).modal('hide');
+    };
+
+    pluginFile_info_dlg.init = function (name, pluginName, type_id,is_obs_stdio,platform_support,intr_url,description,key_file_name,file_id,row_id) {
+        pluginFile_info_dlg.tbl = tbl;
+        pluginFile_info_dlg.name = name;
+        pluginFile_info_dlg.pluginName = pluginName;
+        pluginFile_info_dlg.type_id = type_id;
+        pluginFile_info_dlg.is_obs_stdio = is_obs_stdio;
+        pluginFile_info_dlg.platform_support = platform_support;
+        pluginFile_info_dlg.intr_url = intr_url;
+        pluginFile_info_dlg.description = description;
+        pluginFile_info_dlg.key_file_name = key_file_name;
+        pluginFile_info_dlg.file_id = file_id;
+        pluginFile_info_dlg.row_id = row_id;
+        pluginFile_info_dlg.init_dlg();
+    };
+    pluginFile_info_dlg.init_dlg = function () {
+        $(pluginFile_info_dlg.dom_id + ' #name').val(pluginFile_info_dlg.name);
+        $(pluginFile_info_dlg.dom_id + ' #pluginName').val(pluginFile_info_dlg.pluginName);
+        $(pluginFile_info_dlg.dom_id + ' #type_id').val(pluginFile_info_dlg.type_id);
+        $("input[name='is_obs_stdio'][value='"+pluginFile_info_dlg.is_obs_stdio+"']").prop("checked",true);
+        $(pluginFile_info_dlg.dom_id + ' #key_file_name').val(pluginFile_info_dlg.key_file_name);
+        $(pluginFile_info_dlg.dom_id + ' #file_id').val(pluginFile_info_dlg.file_id);
+
+        // $(pluginFile_info_dlg.dom_id + ' #platform_support').val(pluginFile_info_dlg.platform_support);
+        //平台选中
+        $('input:checkbox').each(function () {
+            $(this).prop('checked', false);
+        })
+        if(pluginFile_info_dlg.platform_support){
+            values=pluginFile_info_dlg.platform_support.split(",");
+            for (v in values){
+                 $("input:checkbox[value='"+v+"']").prop('checked','true');
+            }
+        }
+        $(pluginFile_info_dlg.dom_id + ' #intr_url').val(pluginFile_info_dlg.intr_url);
+        $(pluginFile_info_dlg.dom_id + ' #description').summernote('code', pluginFile_info_dlg.description);
+        if (pluginFile_info_dlg.update === 1) {
+            $(pluginFile_info_dlg.dom_id + ' #vtype-div').show();
+        } else {
+        }
+
+    };
+
+    pluginFile_info_dlg.check_args = function () {
+        var name=$(pluginFile_info_dlg.dom_id + ' #name').val();
+        if(!name||name==""){
+            alert("插件名称不能为空");
+            return;
+        }
+        var pluginName=$(pluginFile_info_dlg.dom_id + ' #pluginName').val();
+        if(!pluginName||pluginName==""){
+            alert("插件英文名称不能为空");
+            return;
+        }
+
+        var type_id=$(pluginFile_info_dlg.dom_id + ' #type_id').val();
+        if(!type_id||type_id==""){
+            alert("插件类型不能为空");
+            return;
+        }
+        var file_id=$(pluginFile_info_dlg.dom_id + ' #file_id').val();
+        var obs_dom=$('input:radio[name="is_obs_stdio"]:checked').val();
+        var is_obs_stdio=obs_dom?obs_dom:"";
+        var key_file_name=$(pluginFile_info_dlg.dom_id + ' #key_file_name').val();
+
+        //获取checkbox选中
+        var str=[];
+        $('input[name="platform_support"]:checked').each(function () {
+            str.push($(this).val());//向数组中添加元素
+        });
+        var platform_support=str.join(",");
+        if(platform_support==""){
+            alert("直播平台不能为空")
+            return
+        }
+        if(!key_file_name||key_file_name==""){
+            alert("关键文件不能为空");
+            return;
+        }
+        var intr_url=$(pluginFile_info_dlg.dom_id + ' #intr_url').val();
+        if(!intr_url||intr_url==""){
+            alert("使用教程url不能为空");
+            return;
+        }
+        var description=$(pluginFile_info_dlg.dom_id + ' #description').summernote('code');
+        if(!description||description==""){
+            alert("插件介绍不能为空");
+            return;
+        }
+        pluginFile_info_dlg.name = name;
+        pluginFile_info_dlg.pluginName = pluginName
+        pluginFile_info_dlg.type_id = type_id
+        pluginFile_info_dlg.is_obs_stdio = is_obs_stdio
+        pluginFile_info_dlg.platform_support = platform_support
+        pluginFile_info_dlg.intr_url = intr_url
+        pluginFile_info_dlg.description = description
+        pluginFile_info_dlg.key_file_name = key_file_name
+        pluginFile_info_dlg.file_id = file_id
+        return true;
+    };
+    pluginFile_info_dlg.post = function () {
+        if (pluginFile_info_dlg.update === 1) {
+            var param={name:pluginFile_info_dlg.name,pluginName:pluginFile_info_dlg.pluginName,type_id:pluginFile_info_dlg.type_id,is_obs_stdio:pluginFile_info_dlg.is_obs_stdio,
+            platform_support:pluginFile_info_dlg.platform_support,intr_url:pluginFile_info_dlg.intr_url,description:pluginFile_info_dlg.description,
+            key_file_name:pluginFile_info_dlg.key_file_name,file_id:"",id:pluginFile_info_dlg.row_id}
+            ywl.ajax_post_json('/pluginFile/update', param,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        pluginFile_info_dlg.tbl.reload();
+                        ywl.notify_success('更新成功！');
+                        pluginFile_info_dlg.hide();
+                    } else {
+                        ywl.notify_error('更新失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，更新失败！');
+                }
+            );
+        } else {
+            var param={name:pluginFile_info_dlg.name,pluginName:pluginFile_info_dlg.pluginName,type_id:pluginFile_info_dlg.type_id,is_obs_stdio:pluginFile_info_dlg.is_obs_stdio,
+            platform_support:pluginFile_info_dlg.platform_support,intr_url:pluginFile_info_dlg.intr_url,description:pluginFile_info_dlg.description,
+            key_file_name:pluginFile_info_dlg.key_file_name,file_id:pluginFile_info_dlg.file_id,id:pluginFile_info_dlg.row_id}
+            ywl.ajax_post_json('/pluginFile/update', param,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        pluginFile_info_dlg.tbl.reload();
+                        ywl.notify_success('添加成功！');
+                        pluginFile_info_dlg.hide();
+                    }  else {
+                        ywl.notify_error('添加失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，添加失败！');
+                }
+            );
+
+        }
+        return true;
+    };
+    $(pluginFile_info_dlg.dom_id + " #btn-save").click(function () {
+        if (!pluginFile_info_dlg.check_args()) {
+            return;
+        }
+        pluginFile_info_dlg.post();
+    });
+    return pluginFile_info_dlg
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        }else if (col_key==="action"){
+            var row_data = tbl.get_row(row_id);
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+                $.get("/pluginFile/get?id=" + row_data.id, function (ret) {
+                        v_dlg.update_show(ret.name, ret.pluginName, ret.type_id,
+                            ret.is_obs_stdio, ret.platform_support, ret.intr_url, ret.description, ret.key_file_name,ret.file_id, ret.id)
+                    }
+                );
+
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+
+                // if (fields.ret_code === 9999 && fields.cost_time > 0) {
+                    ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">修改</a>&nbsp');
+                    // ret.push('<a href="javascript:;" class="btn btn-sm btn-success" protocol=' + fields.protocol + ' ywl-btn-delete="' + fields.ID + '">删除</a>&nbsp');
+                // }
+
+
+            return ret.join('');
+        }
+         render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T"," ") + ' </span>';
+        };
+
+         render.format_platform = function (row_id, fields) {
+            var arr=new Array();
+            var str=""
+            if(fields.platform_support){
+                var ps=fields.platform_support.split(",");
+                for (p in ps){
+                    if(platformMap[p]!=""&&platformMap[p]!=null){
+                           arr.push(platformMap[p]);
+                    }
+                }
+                 str=arr.join(",");
+            }
+            return '<span class="">' + str + ' </span>';
+        };
+
+          render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T"," ") + ' </span>';
+        };
+    };
+};
+
+ywl.create_table_filter_user_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'obs-type';
+	_tblf_st.filter_default = '全部';
+	_tblf_st.filter_value = '';
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-user-id="2">全部</a></li>';
+		node += '<li><a href="javascript:;" ywl-user-id="0">obs</a></li>';
+		node += '<li><a href="javascript:;" ywl-user-id="1">obs-stdio</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		$.each(user_list, function (i, g) {
+			node += '<li><a href="javascript:;" ywl-user-id="' + g.user_id + '">' + g.user_name + '</a></li>';
+		});
+
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-user-id]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var user_name = $(this).html();
+
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(_tblf_st._table_ctrl.load_data)
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = user_name;
+				$(_tblf_st.selector + ' button span:first').html(user_name);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+
+

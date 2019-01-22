@@ -1,0 +1,453 @@
+from sqlalchemy import Column, String, Integer, VARCHAR, ForeignKey, Float, \
+    DateTime, Text, Time, Numeric, Enum, text, Date
+from sqlalchemy.orm import relationship, backref
+from .db import Base
+from datetime import datetime
+
+
+class User(Base):
+    __tablename__ = 't_sys_user'
+    user_id = Column(Integer, primary_key=True)
+    user_name = Column(VARCHAR(20))
+    user_pwd = Column(VARCHAR(40))
+    logtime = Column(VARCHAR(20))
+
+
+class VersionList(Base):
+    __tablename__ = 't_obsmgr_other_version_list'
+    id = Column(Integer, primary_key=True)
+    version = Column(VARCHAR(32))
+    vtype = Column(Integer)
+    download_url = Column(VARCHAR(255))
+    md5 = Column(VARCHAR(32))
+    file_size = Column(Integer)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class VersionMap(Base):
+    __tablename__ = 't_obsmgr_other_version_map'
+    id = Column(Integer, primary_key=True)
+    current_version = Column(VARCHAR(32))
+    update_version = Column(VARCHAR(32))
+    vtype = Column(Integer)
+    update_sign = Column(Integer)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class Vtype(Base):
+    __tablename__ = 't_obsmgr_other_vtype'
+    id = Column(Integer, primary_key=True)
+    vtype_code = Column(Integer)
+    vtype_name = Column(VARCHAR(50))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class Plugin(Base):
+    __tablename__ = 't_obsmgr_plugin'
+    id = Column(Integer, primary_key=True)
+    update_url = Column(VARCHAR(255))
+    core_url = Column(VARCHAR(255))
+    tools_url = Column(VARCHAR(255))
+    module_url = Column(VARCHAR(255))
+    update_person = Column(VARCHAR(30))
+    state = Column(Integer)  # 0默认值，待打包，1打包完成
+    dir = Column(VARCHAR(255))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class Plugin_batch(Base):
+    __tablename__ = 't_obsmgr_plugin_batch'
+    id = Column(Integer, primary_key=True)
+    batch_id = Column(Integer)
+    update_url = Column(VARCHAR(255))
+    batch_dir = Column(VARCHAR(255))
+    update_person = Column(VARCHAR(30))
+    state = Column(Integer)  # 0默认值，待打包，1打包完成
+    chanel_id = Column(Integer)  # 0默认值，待打包，1打包完成
+    chanel_name = Column(Integer)  # 0默认值，待打包，1打包完成
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+##插件类型
+class PluginType(Base):
+    __tablename__ = 't_plugin_type'
+    id = Column(Integer, primary_key=True)
+    tpye_id = Column(Integer)
+    name = Column(VARCHAR(255))
+    description = Column(VARCHAR(255))
+    developer = Column(VARCHAR(30))
+    pluginName = Column(Integer)  # 0默认值，待打包，1打包完成
+    state = Column(Integer)  # 0删除，1默认
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+# 插件基础信息 26个字段
+class PluginFile(Base):
+    __tablename__ = 't_plugin_other_file_list'
+    id = Column(Integer, primary_key=True)
+    file_id = Column(VARCHAR(128))
+    type_id = Column(Integer)
+    flag = Column(Integer)
+    is_obs_stdio = Column(Integer)
+    platform_support = Column(VARCHAR(128))
+    name = Column(VARCHAR(64))
+    version = Column(VARCHAR(16))
+    update_time = Column(VARCHAR(16))
+    go_url = Column(VARCHAR(256))  #
+    pluginName = Column(VARCHAR(64))
+    folders = Column(VARCHAR(256))
+    src_md5 = Column(VARCHAR(256))  #
+    md5 = Column(VARCHAR(32))  #
+    size = Column(Integer)  #
+    files = Column(Integer)  #
+    default_enable = Column(Integer)
+    sortid = Column(Integer)  #
+    description = Column(VARCHAR(256))
+    is_show = Column(Integer)  #
+    developer = Column(VARCHAR(64))  #
+    dlls = Column(Text)  # -----------
+    intr_url = Column(VARCHAR(256))
+    download_url = Column(VARCHAR(256))
+    state = Column(Integer)
+    key_file_name = Column(VARCHAR(256))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+# 插件版本表
+
+
+class PluginFileVersion(Base):
+    __tablename__ = 't_plugin_other_file_version'
+    id = Column(Integer, primary_key=True)
+    file_id = Column(VARCHAR(128))
+    file_name_x64 = Column(VARCHAR(256))
+    file_name_x86 = Column(VARCHAR(256))
+    state = Column(Integer)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class PluginPlatform(Base):
+    __tablename__ = 't_plugin_platform'
+    id = Column(Integer, primary_key=True)
+    platformId = Column(Integer)
+    platformName = Column(VARCHAR(50))
+    url = Column(VARCHAR(255))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class AdsInfo(Base):
+    __tablename__ = 'ads_info'
+    ads_id = Column(Integer, primary_key=True)
+    ads_name = Column(VARCHAR(255))
+    ads_time = Column(Integer)
+    ads_materialurl = Column(VARCHAR(255))
+    ads_materialurl_md5 = Column(VARCHAR(32))
+    ads_thumbnailurl = Column(VARCHAR(255))
+    ads_thumbnailurl_md5 = Column(VARCHAR(32))
+    description = Column(VARCHAR(255))
+    create_time = Column(VARCHAR(255))
+    ads_contents = Column(VARCHAR(255))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class NeedInfo(Base):
+    __tablename__ = 'ads_need_info'
+    need_id = Column(Integer, primary_key=True)
+    package_id = Column(Integer)
+    need_play_type = Column(Integer)
+    anchor_level = Column(VARCHAR(11))
+    position = Column(VARCHAR(255))
+    position_count = Column(Integer)
+    ads_id = Column(VARCHAR(11))
+    enable = Column(Integer)
+    description = Column(VARCHAR(255))
+    need_name = Column(VARCHAR(32))
+    # ads_need_group_id = Column(Integer)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class ContractPackInfo(Base):
+    __tablename__ = 'ads_contract_package_info'
+    package_id = Column(Integer, primary_key=True)
+    package_name = Column(VARCHAR(11))
+    contract_id = Column(Integer)
+    package_price = Column(Numeric())
+    begin_time = Column(DateTime())
+    end_time = Column(DateTime())
+    anchor_need = Column(Integer)
+    anchor_play_count = Column(Integer)
+    anchor_balance = Column(Numeric)
+    union_balance = Column(Numeric)
+    balance_last_time = Column(DateTime())
+    status = Column(Integer)
+    need_desc = Column(Text)
+    create_time = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class AdsContractInfo(Base):
+    __tablename__ = 'ads_contract_info'
+    contract_id = Column(Integer, primary_key=True)
+    contract_name = Column(VARCHAR(255))
+    contract_price = Column(Integer)
+    adsver_id = Column(Numeric)
+    contract_desc = Column(VARCHAR(255))
+    create_time = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class NeedGroupInfo(Base):
+    __tablename__ = 'ads_group_info'
+    ads_need_group_id = Column(Integer, primary_key=True)
+    group_name = Column(VARCHAR(32))
+    comment = Column(VARCHAR(32))
+    anchor_level = Column(VARCHAR(11))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class AdsConfigAnchorWhitelist(Base):
+    __tablename__ = 'ads_config_anchor_listwhite'
+    id = Column(Integer, primary_key=True)
+    plat_id = Column(Integer)
+    room_id = Column(VARCHAR(36))
+    ads_schedule_id = Column(VARCHAR(32))
+    comment = Column(VARCHAR(32))
+    create_time = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class AdsConfigAnchorBlacklist(Base):
+    __tablename__ = 'ads_config_anchor_listblack'
+    id = Column(Integer, primary_key=True)
+    plat_id = Column(Integer)
+    room_id = Column(VARCHAR(36))
+    ads_schedule_id = Column(VARCHAR(32))
+    comment = Column(VARCHAR(32))
+    create_time = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class TLogWithdrawAnchor(Base):
+    __tablename__ = 'T_log_withdraw_anchor'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
+    money = Column(Numeric)
+    sevice_money = Column(Numeric)
+    money_balance = Column(Numeric)
+    sevice_money_balance = Column(Numeric)
+    money_rp = Column(Numeric)
+    sevice_money_rp = Column(Numeric)
+    apply_state = Column(Integer)
+    create_time = Column(DateTime)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class TUserAccountIdentity(Base):
+    __tablename__ = 'T_user_account_identity'
+    identity_id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
+    verify_status = Column(Integer)
+    status = Column(Integer)
+    id_user_name = Column(VARCHAR(128))
+    id_number = Column(VARCHAR(128))
+    bank_name = Column(VARCHAR(128))
+    bank_card_number = Column(VARCHAR(128))
+    hold_user_name = Column(VARCHAR(128))
+    bank_sub_name = Column(VARCHAR(128))
+    id_img_front = Column(VARCHAR(256))
+    qq_number = Column(VARCHAR(255))
+    id_img_back = Column(VARCHAR(256))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class TIdentityPersonal(Base):
+    __tablename__ = 'T_identity_personal'
+    identity_id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
+    verify_status = Column(Integer)
+    status = Column(Integer)
+    id_user_name = Column(VARCHAR(128))
+    id_number = Column(VARCHAR(128))
+    bank_name = Column(VARCHAR(128))
+    bank_card_number = Column(VARCHAR(128))
+    hold_user_name = Column(VARCHAR(128))
+    bank_sub_name = Column(VARCHAR(128))
+    id_img_front = Column(VARCHAR(256))
+    qq_number = Column(VARCHAR(255))
+    id_img_back = Column(VARCHAR(256))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class NeedSchedule(Base):
+    __tablename__ = 'ads_need_schedule'
+    schedule_id = Column(Integer, primary_key=True)
+    schedule_create_time = Column(DateTime())
+    schedule_destroy_time = Column(DateTime())
+    start_alloc_time = Column(DateTime())
+    end_alloc_time = Column(DateTime())
+    start_play_time = Column(DateTime())
+    end_play_time = Column(DateTime())
+    count = Column(Integer)
+    assign_flag = Column(Integer)
+    flag = Column(Integer)
+    schedule_enable = Column(Integer)
+    schedule_state = Column(Integer)
+    description = Column(VARCHAR(255))
+    anchor_if_exp = Column(VARCHAR(255))
+    lv_priority = Column(Integer)
+    schedule_name = Column(VARCHAR(256))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+    group_id = Column(Integer)
+
+
+class GroupNeedMap(Base):
+    __tablename__ = 'ads_group_need_map'
+    id = Column(Integer, primary_key=True)
+    ads_group_id = Column(Integer)
+    ads_need_id = Column(Integer)
+    description = Column(VARCHAR(255))
+    create_time = Column(DateTime())
+    log_time = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class BaseUser(Base):
+    __tablename__ = 'base_user'
+    user_id = Column(Integer, primary_key=True)
+    u_passport_id = Column(String(32), nullable=False, unique=True)
+    anchorid_type = Column(Enum('1', '2'), nullable=False, server_default=text("'2'"))
+    is_signed = Column(Integer, server_default=text("'0'"))
+    user_type = Column(Enum('0', '4', '3', '2', '1'), server_default=text("'0'"))
+    user_state = Column(Enum('1', '0'), server_default=text("'1'"))
+    u_nickname = Column(String(128), index=True)
+    u_mobile_number = Column(String(11))
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"))
+    email = Column(String(64))
+    avatar_img = Column(String(32), nullable=False, server_default=text("''"))
+
+
+class Paltform(Base):
+    __tablename__ = 'T_guild_platform'
+    plat_id = Column(Integer, primary_key=True)
+    plat_name = Column(VARCHAR(255))
+    description = Column(VARCHAR(255))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class RoomInfo(Base):
+    __tablename__ = 'ads_room_info'
+    id = Column(Integer, primary_key=True)
+    platform_id = Column(Integer)
+    room_id = Column(VARCHAR(255))
+    year = Column(VARCHAR(255))
+    week = Column(VARCHAR(255))
+    source_link = Column(VARCHAR(255))
+    emcee = Column(VARCHAR(255))
+    sourcegname = Column(VARCHAR(255))
+    x_rate = Column(Float)
+    max_user_pre_count = Column(Float)
+    ad_value = Column(Float)
+    new_level = Column(VARCHAR(11))
+    ad_level = Column(VARCHAR(11))
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class AdsNeedPlanInfo(Base):
+    __tablename__ = 'ads_need_plan_info'
+    need_plan_id = Column(Integer, primary_key=True)
+    task_id = Column(Integer)
+    plan_status = Column(Integer)
+    schedule_id = Column(Integer)
+    group_id = Column(Integer)
+    flag = Column(VARCHAR(11))
+    anchor_level = Column(VARCHAR(11))
+    create_time = Column(DateTime)
+    play_time = Column(DateTime)
+    schedule_id = Column(Integer)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class AdsOpLog(Base):
+    __tablename__ = 'ads_op_log'
+    op_id = Column(Integer, primary_key=True)
+    op_type = Column(Integer)
+    op_user_id = Column(Integer)
+    op_user_name = Column(VARCHAR(256))
+    op_desc = Column(VARCHAR(256))
+    op_content = Column(VARCHAR(1024))
+    createtime = Column(DateTime)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+
+class TaskPlayLog(Base):
+    __tablename__ = 'ads_task_play_log'
+    play_id = Column(Integer, primary_key=True)
+    task_id = Column(Integer)
+    need_plan_id = Column(Integer)
+    need_id = Column(Integer)
+    postion_id = Column(VARCHAR(11))
+    ads_id = Column(Integer)
+    user_id = Column(Integer)
+    status = Column(Integer)
+    popularity_from = Column(Integer)
+    popularity = Column(Integer)
+    income = Column(Numeric)
+    record_path = Column(VARCHAR(255))
+    screen_shot_path = Column(Text)
+    record_code = Column(Integer)
+    verify_status = Column(Integer)
+    verify_result = Column(Integer)
+    begin_time = Column(DateTime())
+    end_time = Column(DateTime())
+    close_account = Column(Integer)
+    create_time = Column(Date)
+    logtime = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+    log_create_time = Column(DateTime())
+
+
+class AdsTask(Base):
+    __tablename__ = 'ads_task'
+    task_id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
+    ads_union_group_id = Column(Integer)
+    need_plan_id = Column(Integer)
+    plat_id = Column(Integer)
+    room_id = Column(VARCHAR(255))
+    task_result = Column(Integer)
+    task_status = Column(Integer)
+    create_time = Column(Date)
+    logtime = Column(DateTime())
+    stream_start_time = Column(DateTime())
+    task_create_time = Column(DateTime())
+    is_audit = Column(Integer)
+    close_account = Column(Integer)
+    schedule_id = Column(Integer)
+    group_id = Column(Integer)
+    estmate_income = Column(Float)
+
+
+
+
+
+# class OpLog(Base):
+#     __tablename__ = 'ads_op_log'
+#     op_id = Column(Integer, primary_key=True)
+#     op_type = Column(Integer)
+#     op_user_id = Column(Integer)
+#     op_user_name = Column(VARCHAR(255))
+#     op_desc = Column(VARCHAR(255))
+#     op_content = Column(VARCHAR(255))
+#     createtime=Column(DateTime())
+#     logtime=Column(DateTime(), default=datetime.now, onupdate=datetime.now)
+
+# class NeedPlanInfo(Base):
+#     __tablename__ = 'ads_need_plan_info'
+#     need_plan_id= Column(Integer, primary_key=True)
+#     task_id = Column(Integer)
+#     plan_status = Column(Integer)
+#     group_id = Column(Integer)
+#     anchor_level = Column(VARCHAR(11))
+#     play_time=Column(Date())
+#     create_time=Column(DateTime())
+#     logtime=Column(DateTime())
+#     schedule_id=Column(Integer)
+#     flag=Column(VARCHAR(11))
+#     need_id_list=Column(VARCHAR(255))

@@ -1,0 +1,29 @@
+function get_anchor_stock() {
+    var date=$("#date").val()
+    $.post('/anchorstock/list',{date:date},function (ret) {
+        var anchor_day=ret['data']['day']
+        var anchor_all=ret['data']['all']
+        $("#anchor_stock tbody").html("");
+        for(var i=0 in anchor_day){
+            $("#anchor_stock").append("<tr>" +
+                "<td>"+ anchor_day[i].order_date+ "</td>" +
+                "<td><label style='color: red'>" +(anchor_all.s-anchor_day[i].order_s)+"</label>/"+ anchor_day[i].order_s + "</td>" +
+                "<td><label style='color: red'>" +(anchor_all.a-anchor_day[i].order_a)+"</label>/"+ anchor_day[i].order_a + "</td>" +
+                "<td><label style='color: red'>" +(anchor_all.b-anchor_day[i].order_b)+"</label>/"+ anchor_day[i].order_b + "</td>" +
+                "<td><label style='color: red'>" +(anchor_all.c-anchor_day[i].order_c)+"</label>/"+ anchor_day[i].order_c + "</td>" +
+                "<td><label style='color: red'>" +(anchor_all.d-anchor_day[i].order_d)+"</label>/"+ anchor_day[i].order_d + "</td>" +
+                "<tr>");
+        }
+
+        $("#anchor_all tbody").html("");
+         $("#anchor_all").append("<tr>" +
+                "<td>" + "主播人数 " + "</td>" +
+                "<td>" + anchor_all.s + "</td>" +
+                "<td>" + anchor_all.a + "</td>" +
+                "<td>" + anchor_all.b + "</td>" +
+                "<td>" + anchor_all.c + "</td>" +
+                "<td>" + anchor_all.d + "</td>" +
+                "<tr>");
+
+    })
+}

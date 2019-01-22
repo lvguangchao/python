@@ -1,0 +1,498 @@
+var v_dlg = null
+var icom_dupdate = ''
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#withdrawanchorlist-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='withdrawanchorlist-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/withdrawanchorlist/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {
+                title: "提现ID", key: "id", width: 10, fields: {id: 'id'}
+            },
+            {title: "用户ID", key: "user_id", width: 10},
+            {
+                title: "状态",
+                key: "",
+                width: 10,
+                render: 'format_incomeAll',
+                fields: {anchor_balance: 'apply_name', union_balance: "apply_name"}
+            },
+            {title: "手机号", key: "u_mobile_number", width: 10},
+            {title: "打款金额", key: "money", width: 10},
+            {title: "服务费", key: "sevice_money", width: 10},
+            {title: "含红包金额", key: "money_rp", width: 10},
+
+            {title: "银行名称", key: "bank_name", width: 10},
+            {title: "银行卡号", key: "bank_card_number", width: 10},
+            {title: "支行名", key: "bank_sub_name", width: 10},
+            {title: "持卡人姓名", key: "hold_user_name", width: 10},
+            {title: "身份证号", key: "id_number", width: 10},
+            {
+                title: "身份证正面照片", key: "id_img_front", width: 10, render: 'front_with',
+                fields: {id_img_front: 'id_img_front'}
+            },
+            {
+                title: "身份证背面照片", key: "id_img_back", width: 10, render: 'back_with',
+                fields: {id_img_back: 'id_img_back'}
+            },
+            {title: "qq号", key: "qq_number", width: 10},
+            {title: "当前余额", key: "money_balance", width: 10},
+            {
+                title: "申请时间", key: "create_time", width: 10, render: 'format_time', sort: true,
+                fields: {logtime: 'create_time'}
+            },
+            // {
+            //     title: "创建时间", key: "create_time", width: 180, render: 'format_time', sort: true,
+            //     fields: {logtime: 'create_time'}
+            // },
+            // {title: "create_time", key: "create_time",width: 10},
+            // {
+            //     title: "操作",
+            //     key: "action",
+            //     width: 50,
+            //     header_align: 'left', cell_align: 'left',
+            //     render: 'make_action_btn',
+            //     fields: {ID: 'room_id', protocol: 'room_id'}
+            // }
+
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+    var host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    // //初始化素材下拉框
+    // $(document).ready(function() {
+    //     $('#ads_schedule_id_list').multiselect();
+    // });
+
+    // $.get("/seleteshchedule/select?id=0", function (ret) {
+    //         // var auxArr = [];
+    //         $.each(ret, function (k, v) {
+    //             $("#ads_schedule_id_list").append("<option value='" + v["schedule_id"] + "'>" + v["description"] + "</option>");
+    //         });
+    //         // $('#ads_schedule_id_list').append(auxArr.join(''));
+    //         $('#ads_schedule_id_list').multiselect('rebuild');
+    //
+    //     }
+    // );
+
+    // $.get("/packinfo/select", function (ret) {
+    //         var auxArr = [];
+    //         $.each(ret, function (k, v) {
+    //             auxArr[k] = "<option value='" + v["package_id"] + "'>" + v["package_name"] + "</option>";
+    //         });
+    //         $('#package_id').append(auxArr.join(''));
+    //
+    //     }
+    // );
+
+    $("#btn-host-20").click(function () {
+        var ids = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                ids.push(_row_data.user_id);
+            }
+        });
+        if (ids.length === 0) {
+            ywl.notify_error('请选择要批量修改的user_ID！');
+            return;
+        }
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/withdrawanchorlist/edit', {ids: ids, type: 20}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('设为已提交财务成功！');
+                    } else {
+                        ywl.notify_error('设为已提交财务失败！' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，设为已提交财务失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要设为已提交财务吗?</p>',
+            fn_yes: _fn_sure
+        });
+    });
+    $("#btn-host-30").click(function () {
+        var ids = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                ids.push(_row_data.user_id);
+            }
+        });
+        if (ids.length === 0) {
+            ywl.notify_error('请选择要批量修改的user_ID！');
+            return;
+        }
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/withdrawanchorlist/edit', {ids: ids, type: 30}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('设为打款异常成功！');
+                    } else {
+                        ywl.notify_error('设为打款异常失败！' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，设为打款异常失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要设为打款异常吗?</p>',
+            fn_yes: _fn_sure
+        });
+    });
+    $("#btn-host-40").click(function () {
+        var ids = [];
+        var _objs = $(host_table.selector + " tbody tr td [data-check-box]");
+        $.each(_objs, function (i, _obj) {
+            if ($(_obj).is(':checked')) {
+                var _row_data = host_table.get_row(_obj);
+                ids.push(_row_data.user_id);
+            }
+        });
+        if (ids.length === 0) {
+            ywl.notify_error('请选择要批量修改的user_ID！');
+            return;
+        }
+        var _fn_sure = function (cb_stack, cb_args) {
+            ywl.ajax_post_json_time_out('/withdrawanchorlist/edit', {ids: ids, type: 40}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        ywl.notify_success('设为已完成成功！');
+                    } else {
+                        ywl.notify_error('设为已完成失败！' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，设为已完成失败！');
+                }
+            );
+        };
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要设为已完成吗?</p>',
+            fn_yes: _fn_sure
+        });
+    });
+
+
+    $("#btn-add-host").click(function () {
+        v_dlg.create_show();
+    });
+
+    $(dom_id + " [ywl-filter='select']").click(function () {
+        host_table.load_data(cb_stack, {})
+    });
+
+    $(dom_id + " [ywl-filter='update']").click(function () {
+        // host_table.load_data(cb_stack, {})
+
+        var income_from = icom_dupdate;
+        var id = $('input[id=id]').val();
+        var phone = $('input[id=phone]').val();
+        var user_id = $('input[id=user_id]').val();
+        var bank_name = $('input[id=bank_name]').val();
+
+        var isFirefox = /firefox/i.test(navigator.userAgent);
+
+        $.get("/withdrawanchorlist/update?income_from=" + income_from + "&id=" + id + "&phone=" + phone + "&user_id=" + user_id + "&bank_name=" + bank_name, function (result) {
+            // alert(result.data);
+            var url = result.data;
+            {
+                if (!url) return;
+                if (isFirefox) {
+                    location.href = url
+                } else {
+                    a = document.createElement('a')
+                    a.download = url.replace(/.+\/([^/]+\.\w+)(?:\?.*)?$/, '$1')
+                    a.href = url
+                    a.click()
+                }
+            }
+        });
+
+    });
+
+
+    ywl.create_table_filter_incometype_list(host_table, dom_id + " [ywl-filter='income_from']");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='user_id']", "", "user_id");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='id']", "", "id");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='phone']", "", "phone");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='bank_name']", "", "bank_name");
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    // tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+    //     if (col_key === 'select_all') {
+    //         // 选择
+    //         $('#host-select-' + row_id).click(function () {
+    //             var _all_checked = true;
+    //             var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+    //             $.each(_objs, function (i, _obj) {
+    //                 if (!$(_obj).is(':checked')) {
+    //                     _all_checked = false;
+    //                     return false;
+    //                 }
+    //             });
+    //
+    //             var select_all_dom = $('#host-select-all');
+    //             if (_all_checked) {
+    //                 select_all_dom.prop('checked', true);
+    //             } else {
+    //                 select_all_dom.prop('checked', false);
+    //             }
+    //         });
+    //
+    //     } else if (col_key === "action") {
+    //         var row_data = tbl.get_row(row_id);
+    //
+    //         $(cell_obj).find('[ywl-btn-edit]').click(function () {
+    //
+    //             v_dlg.update_show(row_data.id, row_data.room_id, row_data.plat_id, row_data.ads_schedule_id_list, row_data.comment)
+    //         });
+    //     }
+    // };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+
+            // if (fields.ret_code === 9999 && fields.cost_time > 0) {
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">修改</a>&nbsp');
+            // ret.push('<a href="javascript:;" class="btn btn-sm btn-success" protocol=' + fields.protocol + ' ywl-btn-delete="' + fields.ID + '">删除</a>&nbsp');
+            // }
+
+            return ret.join('');
+        };
+
+
+        render.format_incomeAll = function (row_id, fields) {
+
+            if (fields.union_balance === '打款异常') {
+                return '<label style="color: red">' + fields.union_balance + '</label>'
+            } else if (fields.union_balance === '已完成') {
+                return '<label style="color: lawngreen">' + fields.union_balance + '</label>'
+            } else if (fields.union_balance === '已提交财务') {
+                return '<label style="color: blue">' + fields.union_balance + '</label>'
+            } else {
+                return '<label >' + fields.union_balance + '</label>'
+            }
+
+
+        };
+
+        render.front_with = function (row_id, fields) {
+            var temp = []
+            if (fields.id_img_front) {
+                var arr = fields.id_img_front;
+                // alert(arr)
+                temp.push('<a href=' + arr + ' target=_blank>正面证件照</a>')
+            }
+            return temp.join("  ");
+        };
+
+        render.back_with = function (row_id, fields) {
+            var temp = []
+            if (fields.id_img_back) {
+                var arr = fields.id_img_back;
+                // alert(arr)
+                temp.push('<a href=' + arr + ' target=_blank>背面证件照</a>')
+            }
+            return temp.join("  ");
+        };
+
+        render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T", " ") + ' </span>';
+        };
+
+
+    };
+};
+
+ywl.create_table_filter_search_box = function (tbl, selector, on_created, filter_name) {
+    var _tblf_sb = {};
+    // 此过滤器绑定的DOM对象，用于JQuery的选择器
+    _tblf_sb.selector = selector;
+
+    // 此过滤器绑定的表格控件
+    _tblf_sb._table_ctrl = tbl;
+    _tblf_sb._table_ctrl.append_filter_ctrl(_tblf_sb);
+
+    // 过滤器内容
+    _tblf_sb.filter_name = filter_name;
+    _tblf_sb.filter_default = '';
+
+    _tblf_sb.get_filter = function () {
+        var _val = $(_tblf_sb.selector + " input").val();
+        var _ret = {};
+        _ret[_tblf_sb.filter_name] = _val;
+        return _ret;
+    };
+
+
+    _tblf_sb.init = function (cb_stack, cb_args) {
+        // 绑定搜索按钮点击事件
+        // $(_tblf_sb.selector + " button").click(function () {
+        // 	_tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+        // });
+        // 绑定搜索输入框中按下回车键
+        $(_tblf_sb.selector + " input").keydown(function (event) {
+            if (event.which == 13) {
+                _tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+            }
+        });
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_sb);
+        }
+
+        cb_stack.exec();
+    };
+
+    return _tblf_sb;
+};
+
+
+ywl.create_table_filter_incometype_list = function (tbl, selector, on_created) {
+    var _tblf_st = {};
+
+    // 此表格绑定的DOM对象的ID，用于JQuery的选择器
+    _tblf_st.selector = selector;
+    // 此过滤器绑定的表格控件
+    _tblf_st._table_ctrl = tbl;
+    _tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+    // 过滤器内容
+    _tblf_st.filter_name = 'income_from';
+    _tblf_st.filter_default = '';
+    _tblf_st.filter_value = '';
+
+    _tblf_st.get_filter = function () {
+        var _ret = {};
+        _ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+        // _ret["package_id"] = $("#package_id").val();
+        return _ret;
+    };
+
+    _tblf_st.reset = function (cb_stack, cb_args) {
+        if (_tblf_st.filter_value == _tblf_st.filter_default) {
+            cb_stack.exec();
+            return;
+        }
+
+        cb_stack
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = _tblf_st.filter_default;
+                $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+                cb_stack.exec();
+            });
+    };
+
+    _tblf_st.init = function (cb_stack) {
+        var node = '';
+        var user_list = ywl.page_options.user_list;
+        node += '<li><a href="javascript:;" ywl-income-from="">全部</a></li>';
+        node += '<li role="separator" class="divider"></li>';
+        node += '<li><a href="javascript:;" ywl-income-from="' + 10 + '"> 未处理 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 20 + '">已提交财务 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 30 + '">打款异常 </a></li>'
+        node += '<li><a href="javascript:;" ywl-income-from="' + 40 + '">已完成 </a></li>'
+        _tblf_st.filter_value = _tblf_st.filter_default;
+        $(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+        $(_tblf_st.selector + ' ul').empty().append($(node));
+
+        // 点击事件绑定
+        $(_tblf_st.selector + ' ul [ywl-income-from]').click(_tblf_st._on_select);
+
+        if (_.isFunction(on_created)) {
+            on_created(_tblf_st);
+        }
+
+        cb_stack.exec();
+    };
+
+    _tblf_st._on_select = function () {
+        var income_from = $(this).attr("ywl-income-from");
+        icom_dupdate = income_from;
+
+        var income_from_html = $(this).html();
+
+        var cb_stack = CALLBACK_STACK.create();
+        cb_stack
+            .add(_tblf_st._table_ctrl.load_data)
+            .add(function (cb_stack) {
+                _tblf_st.filter_value = income_from;
+                $(_tblf_st.selector + ' button span:first').html(income_from_html);
+                cb_stack.exec();
+            });
+        cb_stack.exec();
+    };
+
+    return _tblf_st;
+};

@@ -1,0 +1,28 @@
+<%!
+    page_title_ = '主机列表'
+    page_menu_ = ['host']
+    page_id_ = 'host'
+%>
+<%inherit file="page_base.mako"/>
+
+
+## Begin Main Body.
+
+<div class="page-content">
+
+</div>
+
+
+
+
+<script type="text/javascript">
+
+
+</script>
+
+
+
+
+
+
+

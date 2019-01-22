@@ -1,0 +1,412 @@
+
+laydate.render({
+    elem: '#create_timeS',
+    type: 'datetime',
+    done: function(value, date, endDate){
+    $("#create_time").val(value);
+  }
+});
+
+laydate.render({
+    elem: '#create_timeA',
+    type: 'datetime',
+    done: function(value, date, endDate){
+    $("#create_timeA").val(value);
+  }
+});laydate.render({
+    elem: '#create_timeB',
+    type: 'datetime',
+    done: function(value, date, endDate){
+    $("#create_timeB").val(value);
+  }
+});laydate.render({
+    elem: '#create_timeC',
+    type: 'datetime',
+    done: function(value, date, endDate){
+    $("#create_timeC").val(value);
+  }
+});
+laydate.render({
+    elem: '#create_timeD',
+    type: 'datetime',
+    done: function(value, date, endDate){
+    $("#create_timeD").val(value);
+  }
+});
+laydate.render({
+    elem: '#create_time1',
+    type: 'datetime',
+    done: function(value, date, endDate){
+    $("#create_time1").val(value);
+  }
+});
+laydate.render({
+    elem: '#create_time2',
+    type: 'datetime',
+    done: function(value, date, endDate){
+    $("#create_time2").val(value);
+  }
+});
+
+
+(function grouptype() {
+    $.get("/groupneedinfo/all", function (ret) {
+        var SArr = []
+        var AArr = []
+        var BArr = []
+        var CArr = []
+        var DArr = []
+        var Arr = []
+        SArr.push("<option value=''>请选择</option>")
+        AArr.push("<option value=''>请选择</option>")
+        BArr.push("<option value=''>请选择</option>")
+        CArr.push("<option value=''>请选择</option>")
+        DArr.push("<option value=''>请选择</option>")
+        Arr.push("<option value=''>请选择</option>")
+        $.each(ret, function (k, v) {
+
+            Arr.push("<option value='" + v["ads_need_group_id"] + "'>" + v["group_name"] + "</option>");
+
+            if (v["anchor_level"] == "S") {
+                SArr.push("<option value='" + v["ads_need_group_id"] + "'>" + v["group_name"] + "</option>");
+            }
+            if (v["anchor_level"] == "A") {
+                AArr.push("<option value='" + v["ads_need_group_id"] + "'>" + v["group_name"] + "</option>");
+            }
+            if (v["anchor_level"] == "B") {
+                BArr.push("<option value='" + v["ads_need_group_id"] + "'>" + v["group_name"] + "</option>");
+            }
+            if (v["anchor_level"] == "C") {
+                CArr.push("<option value='" + v["ads_need_group_id"] + "'>" + v["group_name"] + "</option>");
+            }
+            if (v["anchor_level"] == "D") {
+                DArr.push("<option value='" + v["ads_need_group_id"] + "'>" + v["group_name"] + "</option>");
+            }
+        })
+
+        $("#group_nameS").append(SArr.join(""))
+        $("#group_nameA").append(AArr.join(""))
+        $("#group_nameB").append(BArr.join(""))
+        $("#group_nameC").append(CArr.join(""))
+        $("#group_nameD").append(DArr.join(""))
+        $("#group_name1").append(Arr.join(""))
+        $("#group_name2").append(Arr.join(""))
+    })
+})()
+
+
+ function show_adsInfo(id) {
+     $.get("/needinfo/getadsinfo?id="+id,function (ret) {
+
+         $('#ads_name').val(ret.ads_name);
+         $('#ads_contents').val(ret.ads_contents);
+         $('#ads_time').val(ret.ads_time);
+         $('#ads_materialurl').val(ret.ads_materialurl);
+         var url = 'http://download.xiaohulu.com/obs/adsdownload/' + ret.ads_id + "/" + ret.ads_thumbnailurl
+         var movieurl = 'http://download.xiaohulu.com/obs/adsdownload/' + ret.ads_id + "/" + ret.ads_materialurl
+         $('#downMovieBt').attr("href", movieurl);
+         $('#ads_thumbnailurl').attr("src", url);
+         $("#preview").attr("src", "");
+         $("#dialog-adsinfo-info").modal()
+
+     })
+    }
+function show_needInfo(id) {
+ $.get("/needinfo/selectById?id="+id,function (ret) {
+
+       if(ret&&ret.length>0){
+         $('#need_name').val(ret[0].need_name);
+         $('#package_name').val(ret[0].package_name);
+         if(ret[0].need_play_type){
+             var type=ret[0].need_play_type;
+             $('#need_play_type').val(type==1?"大广告":type==2?"角标播放":"未知");
+         }
+
+         $('#description').val(ret[0].description);
+         $(":radio[name='enable'][value='"+ret[0].enable+"']").prop("checked",true);
+         $("#dialog-needinfo-info").modal()
+     }else {
+           alert("没有找到对应数据");
+       }
+ })
+
+}
+
+
+function selectGroup(that) {
+    var next=$(that).next()
+    next.empty()
+    var group_id=$(that).val()
+    if (group_id != "") {
+        $.get("/needinfo/selectBygruopId?groupid=" + group_id, function (ret) {
+            var html = ''
+            $.each(ret, function (k, v) {
+                var needhtml=[]
+                if (v["ads_id"]) {
+                    var arr = v["ads_id"].split(",");
+                    for (var i in arr) {
+                        needhtml.push('<a href="javascript:void(0)" onclick="show_adsInfo(' + arr[i] + ')">【' + arr[i] + '】</a>')
+                    }
+                }
+                html += "[<span style='color: red;font-size: 20px;'>" + v["anchor_level"] + "</span> <span style='color: green;font-size: 15px;'>need_id:  <a href=\"javascript:void(0)\" onclick=\"show_needInfo( "+ v['need_id'] + ")\">【" + v["need_id"] + "】</span> </a> " +needhtml  + "]   </br>"
+            })
+            next.append(html)
+        })
+    }
+}
+
+function createschedule() {
+
+     var data=[];
+     var levelS=$(":checkbox[name='anchor_levelS']").is(":checked");
+     var levelA=$(":checkbox[name='anchor_levelA']").is(":checked");
+     var levelB=$(":checkbox[name='anchor_levelB']").is(":checked");
+     var levelC=$(":checkbox[name='anchor_levelC']").is(":checked");
+     var levelD=$(":checkbox[name='anchor_levelD']").is(":checked");
+     var level1=$(":checkbox[name='anchor_level1']").is(":checked");
+     var level2=$(":checkbox[name='anchor_level2']").is(":checked");
+
+
+
+
+    if (levelS == true) {
+        var group_id = $("#group_nameS").val();
+        var group_name = $("#group_nameS").find("option:selected").text();
+        if (!group_id || group_id == "" || group_id == undefined) {
+            alert("请选择S级分组");
+            return;
+        }
+        var count = $("#countS").val();
+        var anchor_if_exp = $("#anchor_if_expS").val();
+        var lv_priority = $("#lv_priorityS").val();
+        if (!anchor_if_exp || anchor_if_exp == "" || anchor_if_exp == undefined) {
+            alert("请输入S级公式");
+            return;
+        }
+          var create_time=$("#create_timeS").val();
+        if (!create_time || create_time == "" || create_time == undefined) {
+            alert("请输入S级别时间");
+            return;
+        }
+        var s = {
+            group_name: group_name,
+            group_id: group_id,
+            count: count,
+            anchor_if_exp: anchor_if_exp,
+            lv_priority: lv_priority,
+            create_time:create_time
+        };
+        data.push(s);
+    }
+    if (levelA == true) {
+        var group_id = $("#group_nameA").val();
+        var group_name = $("#group_nameA").find("option:selected").text();
+
+        if (!group_id || group_id == "" || group_id == undefined) {
+            alert("请选择A级分组");
+            return;
+        }
+        var count = $("#countA").val();
+        var anchor_if_exp = $("#anchor_if_expA").val();
+        var lv_priority = $("#lv_priorityA").val();
+        if (!anchor_if_exp || anchor_if_exp == "" || anchor_if_exp == undefined) {
+            alert("请输入级公式");
+            return;
+        }
+        var create_time=$("#create_timeA").val();
+        if (!create_time || create_time == "" || create_time == undefined) {
+            alert("请输入A级别时间");
+            return;
+        }
+
+        var a = {
+            group_id: group_id,
+            group_name: group_name,
+            count: count,
+            anchor_if_exp: anchor_if_exp,
+            lv_priority: lv_priority,
+            create_time:create_time,
+
+        };
+        data.push(a);
+    }
+    if (levelB == true) {
+        var group_id = $("#group_nameB").val();
+        var group_id = $("#group_nameB").find("option:selected").text();
+
+        if (!group_id || group_id == "" || group_id == undefined) {
+            alert("请选择B级分组");
+            return
+        }
+        var count = $("#countB").val();
+        var anchor_if_exp = $("#anchor_if_expB").val();
+        var lv_priority = $("#lv_priorityB").val();
+        if (!anchor_if_exp || anchor_if_exp == "" || anchor_if_exp == undefined) {
+            alert("请输入B级公式");
+            return
+        }
+          var create_time=$("#create_timeB").val();
+        if (!create_time || create_time == "" || create_time == undefined) {
+            alert("请输入B级别时间");
+            return;
+        }
+        var b = {
+            group_name: group_name,
+            group_id: group_id,
+            count: count,
+            anchor_if_exp: anchor_if_exp,
+            lv_priority: lv_priority,
+            create_time:create_time
+        };
+        data.push(b)
+    }
+    if (levelC == true) {
+        var group_id = $("#group_nameC").val();
+        var group_name = $("#group_nameC").find("option:selected").text();
+
+        if (!group_id || group_id == "" || group_id == undefined) {
+            alert("请选择C级分组");
+            return
+        }
+        var count = $("#countC").val();
+        var anchor_if_exp = $("#anchor_if_expC").val();
+        var lv_priority = $("#lv_priorityC").val();
+        if (!anchor_if_exp || anchor_if_exp == "" || anchor_if_exp == undefined) {
+            alert("请输入C级公式");
+            return
+        }
+        var create_time=$("#create_timeC").val();
+        if (!create_time || create_time == "" || create_time == undefined) {
+            alert("请输入C级别时间");
+            return;
+        }
+        var c = {
+            group_name: group_name,
+            group_id: group_id,
+            count: count,
+            anchor_if_exp: anchor_if_exp,
+            lv_priority: lv_priority,
+            create_time:create_time
+        };
+        data.push(c);
+    }
+    if (levelD == true) {
+        var group_id = $("#group_nameD").val();
+        var group_name = $("#group_nameD").find("option:selected").text();
+
+        if (!group_id || group_id == "" || group_id == undefined) {
+            alert("请选择D级分组");
+            return;
+        }
+        var count = $("#countD").val();
+        var anchor_if_exp = $("#anchor_if_expD").val();
+        var lv_priority = $("#lv_priorityD").val();
+        if (!anchor_if_exp || anchor_if_exp == "" || anchor_if_exp == undefined) {
+            alert("请输入D级公式");
+            return
+        }
+          var create_time=$("#create_timeD").val();
+        if (!create_time || create_time == "" || create_time == undefined) {
+            alert("请输入D级别时间");
+            return;
+        }
+        var d = {
+            group_name: group_name,
+            group_id: group_id,
+            count: count,
+            anchor_if_exp: anchor_if_exp,
+            lv_priority: lv_priority,
+            create_time:create_time
+
+        };
+        data.push(d)
+    }
+    if (level1 == true) {
+        var group_id = $("#group_name1").val();
+        var group_name = $("#group_name1").find("option:selected").text();
+
+        if (!group_id || group_id == "" || group_id == undefined) {
+            alert("请选择定制1分组");
+            return;
+        }
+        var count = $("#count1").val();
+        var anchor_if_exp = $("#anchor_if_exp1").val();
+        var lv_priority = $("#lv_priority1").val();
+        if (!anchor_if_exp || anchor_if_exp == "" || anchor_if_exp == undefined) {
+            alert("请输入定制1公式");
+            return
+        }
+        var create_time = $("#create_time1").val();
+        if (!create_time || create_time == "" || create_time == undefined) {
+            alert("请输入定制1别时间");
+            return;
+        }
+        var d = {
+            group_name: group_name,
+            group_id: group_id,
+            count: count,
+            anchor_if_exp: anchor_if_exp,
+            lv_priority: lv_priority,
+            create_time: create_time
+
+        };
+        data.push(d)
+    }
+    if (level2 == true) {
+        var group_id = $("#group_name2").val();
+        var group_name = $("#group_name2").find("option:selected").text();
+
+        if (!group_id || group_id == "" || group_id == undefined) {
+            alert("请选择定制2分组");
+            return;
+        }
+        var count = $("#count2").val();
+        var anchor_if_exp = $("#anchor_if_exp2").val();
+        var lv_priority = $("#lv_priority2").val();
+        if (!anchor_if_exp || anchor_if_exp == "" || anchor_if_exp == undefined) {
+            alert("请输入定制2公式");
+            return
+        }
+        var create_time = $("#create_time2").val();
+        if (!create_time || create_time == "" || create_time == undefined) {
+            alert("请输入定制2时间");
+            return;
+        }
+        var d = {
+            group_name: group_name,
+            group_id: group_id,
+            count: count,
+            anchor_if_exp: anchor_if_exp,
+            lv_priority: lv_priority,
+            create_time: create_time
+
+        };
+        data.push(d)
+    }
+
+     if(data.length>0){
+
+         $.ajax({
+             type: "POST",
+             url: "/needschedule/add",
+             data: {"param":JSON.stringify(data)},
+             success: function (msg) {
+                 if(msg.code==0){
+                     alert("广告投放成功");
+                     window.open("","_self").close();
+
+                 }else{
+                     alert("广告投放失败,"+msg.message);
+                 }
+             },
+             error:function () {
+                 alert("网络故障，广告投放失败");
+             }
+
+         });
+
+     } else{
+         alert("还没有选择任何等级复选框");
+         return;
+     }
+}

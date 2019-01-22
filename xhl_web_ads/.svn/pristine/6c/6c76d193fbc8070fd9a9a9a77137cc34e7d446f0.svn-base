@@ -1,0 +1,605 @@
+var v_dlg = null
+var incomefrom=null
+var platid=null
+var unionid=null
+
+function showDetail(that) {
+    if ($(that).attr("value") && $(that).attr("value") != "null" && $(that).attr("value") != "") {
+        var arr = $(that).attr("value").split(",");
+        var node = '';
+        for (r in arr) {
+            node += '<a href=' + arr[r].replace("pic.hub520.com", "pic.xiaohulu.com") + ' target="_blank">' + arr[r].replace("pic.hub520.com", "pic.xiaohulu.com") + '</a>' + "<br/>";
+        }
+        $("#shot_path").empty();
+        $("#shot_path").html(node);
+        $("#dialog-playdetail-info").modal();
+    }else {
+        alert("该播放记录暂无截图信息")
+    }
+}
+function showVedioDetail(that) {
+    if ($(that).attr("value") && $(that).attr("value") != "null" && $(that).attr("value") != "") {
+        	window.open($(that).attr("value"));
+    }else {
+        alert("该播放记录暂无视频");
+    }
+}
+
+
+function getRoominfo(roomId) {
+    $.get("/incomeanchor/getroominfo?roomId=" + roomId, function (ret) {
+        if (ret.code === TPE_OK) {
+        	$("#anchor_name").val(ret.data["emcee"]);
+        	$("#room_url").val(ret.data["source_link"]);
+        	$("#roomurlBt").attr("href",ret.data["source_link"]);
+        	// $("#room_url").val(ret.data["source_link"]);
+        	$("#dialog-room-info").modal()
+
+
+        } else {
+            ywl.notify_error('获取房间信息失败！' + ret.message);
+        }
+    })
+}
+
+function goRoom(that) {
+     var  url=$(that).attr("url");
+      if(url){
+          window.open(url);
+      }else{
+          alert("没有视频文件");
+      }
+  }
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#incomeanchor-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='incomeanchor-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/incomeanchor/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'package_id'}
+            },
+
+            {title: "结算工会id", key: "union_id", width: 50},
+            {title: "结算工会名称", key: "union_name", width: 50},
+            {title: "结算id", key: "income_log_id", width: 150},
+			 {title: "平台", key: "plat_name", width: 150},
+            {title: "房间id", key: "room_id", width: 150,render: 'format_roominfo',
+                fields: {room_id: 'room_id'}},
+			{title: "用户id", key: "user_id", width: 150},
+			{title: "人气", key: "popularity", width: 150},
+            {title: "任务id", key: "task_id", width: 150},
+            {title: "结算逻辑", key: "income_from", width: 150,render: 'format_income_from',
+                fields: {income_from: 'income_from'}},
+            {title: "结算金额", key: "income", width: 150,render:'format_income', fields: {income: 'income'}},
+			{
+                title: "视频",
+                key: "record_path",
+                width: 10,
+                render: "link_record",
+                fields: {record_path:"record_path"}
+            },
+            {
+                title: "截图",
+                key: "screen_shot_path",
+                width: 10,
+                render: "formatShotPath",
+                fields: { screen_shot_path:"screen_shot_path"}
+            },
+            {title: "task创建日期", key: "task_create_time", width: 120,render: 'format_time',
+                fields: {task_create_time: 'task_create_time'}}
+
+        ],
+        paging: {selector: dom_id, per_page: paging_big},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+    var host_table_options2 = {
+        selector: dom_id + " [toc-table='incomeanchor-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/incomeanchor/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'package_id'}
+            },
+
+            {title: "结算id", key: "income_log_id", width: 150},
+			 {title: "平台", key: "plat_name", width: 150},
+            {title: "房间id", key: "room_id", width: 150,render: 'format_roominfo',
+                fields: {room_id: 'room_id'}},
+			{title: "用户id", key: "user_id", width: 150},
+            {title: "任务id", key: "task_id", width: 150},
+            {title: "结算逻辑", key: "income_from", width: 150,render: 'format_income_from',
+                fields: {income_from: 'income_from'}},
+            {title: "结算金额", key: "income", width: 150,render:'format_income', fields: {income: 'income'}},
+			{
+                title: "视频",
+                key: "record_path",
+                width: 10,
+                render: "link_record",
+                fields: {record_path:"record_path"}
+            },
+            {
+                title: "截图",
+                key: "screen_shot_path",
+                width: 10,
+                render: "formatShotPath",
+                fields: { screen_shot_path:"screen_shot_path"}
+            },
+            {title: "task创建日期", key: "task_create_time", width: 120,render: 'format_time',
+                fields: {task_create_time: 'task_create_time'}}
+
+        ],
+        paging: {selector: dom_id, per_page: paging_big},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+
+    };
+
+    var temp=host_table_options;
+	var income_type=$("#income_type").val()
+
+    if(income_type==1){
+    	temp=host_table_options2
+	}
+    var host_table = ywl.create_table(temp);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    $(dom_id + " [ywl-filter='export']").click(function () {
+    	var package_id=$("#package_id").val()
+    	var package_name=$("#package_name").val()
+    	var union_name=$("#union_name").val()
+    	var income_log_id=$("#income_log_id").val()
+    	var user_id=$("#user_id").val()
+    	var task_id=$("#task_id").val()
+    	var room_id=$("#room_id").val()
+		incomefrom=incomefrom?incomefrom:"";
+		platid=platid?platid:"";
+		unionid=unionid?unionid:"";
+        var isFirefox = /firefox/i.test(navigator.userAgent);
+        $.get("/incomeanchor/export?package_id=" + package_id+"&unionid="+unionid+"&income_log_id="+"&income_type="+income_type+"&room_id="+room_id,
+			income_log_id+"&user_id="+user_id+"&task_id="+task_id+"&plat_id="+platid+"&income_from="+incomefrom+"&package_name="+package_name, function (result) {
+            // alert(result.data);
+            var url = result.data;
+            {
+                if (!url) return;
+                if (isFirefox) {
+                    location.href = url
+                } else {
+                    a = document.createElement('a')
+                    a.download = url.replace(/.+\/([^/]+\.\w+)(?:\?.*)?$/, '$1')
+                    a.href = url
+                    a.click()
+                }
+            }
+        });
+    });
+
+       $.get("/platform4all/list",{} , function (ret) {
+            var auxArr = [];
+             auxArr.push("<option value=''>请选择</option>")
+            $.each(ret, function (k, v) {
+                auxArr.push( "<option value='" + v["union_id"] + "'>" + v["union_name"] + "</option>");
+            });
+            // auxArr.push('<option value="">请选择</option>')
+            $('.js-example-basic-single').append(auxArr.join(''));
+		   	$('.js-example-basic-single').select2();
+
+
+			 cb_stack
+					.add(host_table.load_data)
+					.add(host_table.init)
+					.exec();
+
+        });
+
+
+	ywl.create_table_filter_incometype_list(host_table, "[ywl-filter='income_from']");
+    ywl.create_table_filter_plat_list(host_table, dom_id + " [ywl-filter='plat_id']");
+    // ywl.create_table_filter_union_list(host_table, dom_id + " [ywl-filter='union_id']","","union_id");
+    ywl.create_table_filter_search_box(host_table, "[ywl-filter='income_log_id']","","income_log_id");
+	ywl.create_table_filter_search_box(host_table, "[ywl-filter='user_id']","","user_id");
+    ywl.create_table_filter_search_box(host_table, "[ywl-filter='task_id']","","task_id");
+    ywl.create_table_filter_search_box(host_table, "[ywl-filter='room_id']","","room_id");
+    ywl.create_table_filter_search_box(host_table, "[ywl-filter='begintime']","","begintime");
+    ywl.create_table_filter_search_box(host_table, "[ywl-filter='endtime']","","endtime");
+
+    $("[ywl-filter='select']").click(function () {
+		host_table.load_data(cb_stack, {})
+    });
+};
+
+
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        } else if (col_key === "action") {
+            var row_data = tbl.get_row(row_id);
+
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+
+                v_dlg.update_show(row_data.package_id, row_data.package_name, row_data.contract_id, row_data.package_price, row_data.begin_time, row_data.end_time, row_data.anchor_need, row_data.anchor_play_count, row_data.S, row_data.A, row_data.B, row_data.C, row_data.D)
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">查看</a>&nbsp');
+            return ret.join('');
+        };
+
+
+        render.format_time = function (row_id, fields) {
+        	return '<span class="badge badge-primary mono">' + fields.task_create_time.replace("T", " ") + ' </span>';
+        };
+        render.format_income_from = function (row_id, fields) {
+
+            return fields.income_from == 1 ? '自然结算' : fields.income_from == 2 ? "人工结算" : ""
+        };
+        render.format_roominfo = function (row_id, fields) {
+
+            return '<a href="javascript:void (0);" onclick="getRoominfo('+fields.room_id+')" class="btn btn-sm ">'+fields.room_id+'</a>'
+
+        };
+        render.format_income = function (row_id, fields) {
+
+            return '<label style="color: red">￥'+fields.income+'</label>'
+
+        };
+
+        render.link_record = function (row_id, fields) {
+            return '<a href="javascript:void(0)" onclick="showVedioDetail(this)" class="btn btn-sm btn-primary" value=' + fields.record_path + '>查看</a>'
+        };
+
+
+        render.formatShotPath = function (row_id, fields) {
+            return '<a href="javascript:void(0)" onclick="showDetail(this)" class="btn btn-sm btn-primary" value=' + fields.screen_shot_path + '>查看</a>'
+        };
+    };
+};
+
+
+
+ywl.create_table_filter_plat_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'plat_id';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		_ret["package_id"] = $("#package_id").val();
+		_ret["income_type"] = $("#income_type").val();
+		var s=$('.js-example-basic-single').select2("data")[0];
+		_ret["unionid"] = s.id;
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var plat_list = ywl.page_options.platformList;
+		node += '<li><a href="javascript:;" ywl-plat-id="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		$.each(plat_list, function (i, g) {
+			node += '<li><a href="javascript:;" ywl-plat-id="' + g.plat_id + '">' + g.plat_name + '</a></li>';
+		});
+
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-plat-id]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var plat_id_html = $(this).html();
+		var plat_id = $(this).attr("ywl-plat-id");
+		platid=plat_id
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = plat_id;
+				$(_tblf_st.selector + ' button span:first').html(plat_id_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+ywl.create_table_filter_union_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'unionid';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var plat_list = ywl.page_options.unionList;
+		node += '<li><a href="javascript:;" ywl-union-id="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		$.each(plat_list, function (i, g) {
+			node += '<li><a href="javascript:;" ywl-union-id="' + g.union_id + '">' + g.union_name + '</a></li>';
+		});
+
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-union-id]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var union_id_html = $(this).html();
+		var union_id = $(this).attr("ywl-union-id");
+		unionid=union_id
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = union_id;
+				$(_tblf_st.selector + ' button span:first').html(union_id_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+
+ywl.create_table_filter_incometype_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'income_from';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		// _ret["package_id"] = $("#package_id").val();
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-income-from="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		node+='<li><a href="javascript:;" ywl-income-from="' + 1+ '"> 自然结算 </a></li>'
+		node+='<li><a href="javascript:;" ywl-income-from="' + 2 + '">人工结算 </a></li>'
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-income-from]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var income_from = $(this).attr("ywl-income-from");
+		incomefrom=income_from
+		var income_from_html = $(this).html();
+
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = income_from;
+				$(_tblf_st.selector + ' button span:first').html(income_from_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+
+
+ywl.create_table_filter_search_box = function (tbl, selector, on_created,filter_name) {
+	var _tblf_sb = {};
+	// 此过滤器绑定的DOM对象，用于JQuery的选择器
+	_tblf_sb.selector = selector;
+
+	// 此过滤器绑定的表格控件
+	_tblf_sb._table_ctrl = tbl;
+	_tblf_sb._table_ctrl.append_filter_ctrl(_tblf_sb);
+
+	// 过滤器内容
+	_tblf_sb.filter_name = filter_name;
+	_tblf_sb.filter_default = '';
+
+	_tblf_sb.get_filter = function () {
+		var _val = $(_tblf_sb.selector + " input").val();
+		var _ret = {};
+		_ret[_tblf_sb.filter_name] = _val;
+		return _ret;
+	};
+
+
+
+	_tblf_sb.init = function (cb_stack, cb_args) {
+		// 绑定搜索按钮点击事件
+		// $(_tblf_sb.selector + " button").click(function () {
+		// 	_tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+		// });
+		// 绑定搜索输入框中按下回车键
+		$(_tblf_sb.selector + " input").keydown(function (event) {
+			if (event.which == 13) {
+				_tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+			}
+		});
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_sb);
+		}
+
+		cb_stack.exec();
+	};
+
+	return _tblf_sb;
+};

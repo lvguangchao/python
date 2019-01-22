@@ -1,0 +1,165 @@
+from eom_app.orm.tables import TLogWithdrawAnchor, TUserAccountIdentity, BaseUser, RoomInfo, TIdentityPersonal
+from eom_app.orm.db import app_db
+from  eom_app.orm.JSONEncoder import AlchemyEncoder
+import json
+import  datetime
+
+
+class LabelClass(object):
+    _withdraw = None
+    _baseuser = None
+    _groupId2unionIdMap = None  # xhl_ads数据库  ads_union_group_id  对应  union_id 的map
+    _unionid2nameMap = None  # xhl_guild 数据库  union_id  对应  union_name 的map
+    _name2unionidMap = None  # xhl_guild 数据库  union_id  对应  union_name 的map
+    _roomInfoMap = None
+
+    @property
+    def db(self):
+        return app_db().get_DBSession()
+
+    @property
+    def db_ads(self):
+        return app_db().get_Ads_DBSession()
+
+    @property
+    def db_wealth(self):
+        return app_db().get_Wealth_DBSession()
+
+    @property
+    def db_guild(self):
+        return app_db().get_guild_DBSession()
+
+    def TLogWithdrawAnchor(self):
+        if self._withdraw is None:
+            session = None
+            try:
+                # print(datetime.datetime.now())
+                result = self.db_wealth.query(TIdentityPersonal).all()
+                # print(datetime.datetime.now())
+                ret = list()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        temp['identity_id'] = info.identity_id
+                        temp['user_id'] = info.user_id
+                        temp['verify_status'] = info.verify_status
+                        temp['status'] = info.status
+                        temp['id_user_name'] = info.id_user_name
+                        temp['id_number'] = info.id_number
+                        temp['bank_name'] = info.bank_name
+                        temp['bank_card_number'] = info.bank_card_number
+                        temp['hold_user_name'] = info.hold_user_name
+                        temp['bank_sub_name'] = info.bank_sub_name
+                        temp['id_img_front'] = info.id_img_front
+                        temp['qq_number'] = info.qq_number
+                        temp['id_img_back'] = info.id_img_back
+                        ret.append(temp)
+                    # print(datetime.datetime.now())
+                    self._withdraw = ret
+                    return ret
+                return None
+            except Exception as e:
+
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._withdraw
+
+    def Baseuser(self):
+        if self._baseuser is None:
+            session = None
+            try:
+                result = self.db_guild.query(BaseUser.u_mobile_number,BaseUser.user_id).all()
+                ret = list()
+                if result:
+                    for info in result:
+                        temp = dict()
+                        temp['user_id'] = info.user_id
+                        temp['u_mobile_number'] = info.u_mobile_number
+                        ret.append(temp)
+                    self._baseuser = ret
+                    return ret
+                return None
+            except Exception as e:
+                print(e)
+                return None
+            finally:
+                if session is not None:
+                    session.close()
+        else:
+            return self._baseuser
+
+    ##ads ads_union_group_id  对应  union_id 的map
+    def getGroupId2unionId(self):
+        if self._groupId2unionIdMap is None:
+            try:
+                sql = 'select ads_union_group_id,union_id from ads_union_group'
+                results = self.db_ads.execute(sql).fetchall()
+                groupId2unionIdMap = dict()
+                for r in results:
+                    if r[0] is not None and r[0] != "":
+                        groupId2unionIdMap[r[0]] = r[1]
+                self._groupId2unionIdMap = groupId2unionIdMap
+                return groupId2unionIdMap
+            except Exception as e:
+                return None
+            finally:
+                self.db_ads.close()
+        else:
+            return self._groupId2unionIdMap
+
+    # xhl_guild 数据库  union_id   对应  union_name 的map
+    # xhl_guild 数据库  union_name 对应 union_id  的map
+    def unionid2nameMap(self):
+        if self._unionid2nameMap is None or self._name2unionidMap is None:
+            try:
+                sql = 'select union_id,union_name from base_union'
+                results = self.db_guild.execute(sql).fetchall()
+                unionid2nameMap = dict()
+                name2unionidMap = dict()
+                for r in results:
+                    if r[0] is not None and r[0] != "":
+                        unionid2nameMap[r[0]] = r[1]
+                    if r[1] is not None and r[1] != "":
+                        name2unionidMap[r[1]] = r[0]
+                self._unionid2nameMap = unionid2nameMap
+                self._name2unionidMap = name2unionidMap
+                return unionid2nameMap, name2unionidMap
+            except Exception as e:
+                print(e)
+                return None
+            finally:
+                self.db_guild.close()
+        else:
+            return self._unionid2nameMap, self._name2unionidMap
+
+    def getRoomInfo(self):
+        if self._roomInfoMap is None:
+            roomInfoMap = dict()
+            try:
+                result = self.db_ads.query(RoomInfo).all()
+                if result:
+                    for info in result:
+                        temp = json.loads(json.dumps(info, cls=AlchemyEncoder))
+                        roomInfoMap[info.room_id] = temp
+                    self._roomInfoMap = roomInfoMap
+                    return roomInfoMap
+                return None
+            except Exception as e:
+                return None
+            finally:
+                self.db_ads.close()
+        else:
+            return self._roomInfoMap
+
+
+_withdraw = LabelClass()
+
+del LabelClass
+
+
+def app_map():
+    global _withdraw
+    return _withdraw

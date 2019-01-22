@@ -1,0 +1,719 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+"""
+@author: lvguangchao
+@email: guangchao.lv@qq.com
+@file: ads.py
+@time: 2017/11/7 13:58
+"""
+from eom_common.eomcore.logger import *
+
+from .base import SwxJsonHandler
+
+from eom_app.orm.tables import AdsInfo, ContractPackInfo, AdsContractInfo, NeedInfo
+
+from .helper import randomCode
+from sqlalchemy import func, or_
+import json, os, base64, datetime, tornado, random
+from  eom_app.orm.JSONEncoder import AlchemyEncoder
+from eom_common.eomcore.logger import log
+from eom_app.controller.helper.uploadManager import app_upManager
+from eom_app.app.configs import app_cfg
+
+cfg = app_cfg()
+import time, zipfile
+
+app_upManager = app_upManager()
+
+
+####---------------广告---------------------------------
+class AdsInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/ads_manager/ads_info/adsinfo_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+
+        sql = "SELECT ads_id,ads_name,ads_materialurl,ads_materialurl_md5,ads_thumbnailurl,ads_contents,logtime,ads_time  from ads_info where 1=1"
+
+        filter = args["filter"]
+        name = ""
+        if "search" in filter.keys():
+            name = filter["search"]
+        if name is not None and name != "":
+            sql = sql + " and ads_name like '%" + name.strip() + "%'"
+        offset = " ORDER BY logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+        datas = self.db_ads.execute(sql + offset).fetchall()
+
+        lst = list()
+        for data in datas:
+            ads_id = data[0]
+            ads_name = data[1]
+            ads_materialurl = data[2]
+            ads_materialurl_md5 = data[3]
+            ads_thumbnailurl = data[4]
+            ads_contents = data[5]
+            logtime = data[6].isoformat()
+            ads_time = data[7]
+            lst.append(
+                {"ads_id": ads_id, "ads_name": ads_name, "ads_materialurl": ads_materialurl, "ads_time": ads_time,
+                 "ads_materialurl_md5": ads_materialurl_md5, "ads_thumbnailurl": ads_thumbnailurl,
+                 "logtime": logtime, "ads_contents": ads_contents})
+
+        count = self.db_ads.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class adsinfoAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        file_metas = self.request.files.get("file", None)  # 获取上传视频信息
+        file_metas_pic = self.request.files.get("file_pic", None)  # 获取上传图片信息
+        task_gen = self.get_argument("task_gen", None)
+        ads_contents = self.get_argument("ads_contents", None)
+        ads_name = self.get_argument("ads_name", None)
+        ads_time = self.get_argument("ads_time", None)
+        if not task_gen:
+            self.write_json(-1, "系统错误,请重试")
+            return
+
+        adsinfo = AdsInfo()
+        adsinfo.ads_contents = ads_contents
+        adsinfo.ads_name = ads_name
+        adsinfo.ads_time = int(ads_time) if ads_time is not None else 0
+        try:
+            self.db_ads.add(adsinfo)
+            self.db_ads.commit()
+        except Exception as  e:
+            self.db_ads.rollback()
+            self.db_ads.close()
+            log.e(e)
+            self.write_json(500, "添加失败")
+            return
+
+        if adsinfo.ads_id is None:
+            self.write_json(-1, "系统错误")
+            return
+
+        upload = app_upManager.find_task(task_gen).uploadSSH
+        remotePath = cfg.file_remotePath + "/" + str(adsinfo.ads_id)  # 文件夹路径
+
+        v_data = self.db_ads.query(AdsInfo).filter(AdsInfo.ads_id == adsinfo.ads_id).first()
+
+        if file_metas:
+            for meta in file_metas:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                (fn, extension) = os.path.splitext(file_name)
+                t = int(time.time())
+                file_name = "{}_{}{}".format(str(adsinfo.ads_id), t, extension)  # 文件名称
+                yield self.upload_task(upload, meta['body'], remotePath, file_name)
+                import hashlib  # 计算文件的MD5
+                md5_obj = hashlib.md5()
+                md5_obj.update(meta['body'])
+                hash_code = md5_obj.hexdigest()
+                md5 = str(hash_code).upper()
+                v_data.ads_materialurl = file_name
+                v_data.ads_materialurl_md5 = md5
+
+        if file_metas_pic:
+            for meta in file_metas_pic:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                (fn, extension) = os.path.splitext(file_name)
+                t = int(time.time())
+                file_name = "{}_{}{}".format(str(adsinfo.ads_id), t, extension)  # 文件名称
+                yield self.upload_task(upload, meta['body'], remotePath, file_name)
+                v_data.ads_thumbnailurl = file_name
+
+        try:
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "添加失败")
+        finally:
+            self.db_ads.close()
+
+
+class adsinfoEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+        file_metas = self.request.files.get("file", None)  # 获取上传视频信息
+        file_metas_pic = self.request.files.get("file_pic", None)  # 获取上传图片信息
+        task_gen = self.get_argument("task_gen", None)
+        ads_id = self.get_argument("ads_id", None)
+        ads_contents = self.get_argument("ads_contents", None)
+        ads_name = self.get_argument("ads_name", None)
+        ads_time = self.get_argument("ads_time", None)
+        if not task_gen:
+            self.write_json(-1, "系统错误,请重试")
+            return
+
+        v_data = self.db_ads.query(AdsInfo).filter(AdsInfo.ads_id == ads_id).first()
+        v_data.ads_contents = ads_contents
+        v_data.ads_name = ads_name
+        v_data.ads_time = int(ads_time) if ads_time is not None else 0
+
+        upload = app_upManager.find_task(task_gen).uploadSSH
+        remotePath = cfg.file_remotePath + "/" + str(v_data.ads_id)  # 文件夹路径
+
+        if file_metas:
+            for meta in file_metas:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                (fn, extension) = os.path.splitext(file_name)
+                t = int(time.time())
+                file_name = "{}_{}{}".format(str(v_data.ads_id), t, extension)  # 文件名称
+                yield self.upload_task(upload, meta['body'], remotePath, file_name)
+                import hashlib  # 计算文件的MD5
+                md5_obj = hashlib.md5()
+                md5_obj.update(meta['body'])
+                hash_code = md5_obj.hexdigest()
+                md5 = str(hash_code).upper()
+                v_data.ads_materialurl = file_name
+                v_data.ads_materialurl_md5 = md5
+
+        if file_metas_pic:
+            for meta in file_metas_pic:  # 循环文件信息
+                file_name = meta['filename']  # 获取文件的名称
+                (fn, extension) = os.path.splitext(file_name)
+                t = int(time.time())
+                file_name = "{}_{}{}".format(str(v_data.ads_id), t, extension)  # 文件名称
+                yield self.upload_task(upload, meta['body'], remotePath, file_name)
+                v_data.ads_thumbnailurl = file_name
+
+        try:
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "修改失败")
+        finally:
+            self.db_ads.close()
+
+
+class adsInfoDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(AdsInfo).filter(AdsInfo.ads_id.in_(ids)).delete(synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+# ------------需求---------------------
+class needInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/need_manger/needinfo_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+
+        sql = "SELECT  n.need_id,p.package_name,n.need_play_type,n.anchor_level,n.position,n.ads_id,n.enable,n.logtime,n.description" \
+              ",n.need_name from ads_need_info n  LEFT JOIN ads_contract_package_info p ON n.package_id=p.package_id where 1=1"
+
+        filter = args["filter"]
+        name = ""
+        if "search" in filter.keys():
+            name = filter["search"]
+        if name is not None and name != "":
+            sql = sql + " and p.package_name like '%" + name.strip() + "%' "
+        offset = " ORDER BY n.logtime DESC LIMIT {},{}".format(limit['page_index'] * 10, limit['per_page'])
+        datas = self.db_ads.execute(sql + offset).fetchall()
+
+        lst = list()
+        for data in datas:
+            need_id = data[0]
+            package_name = data[1]
+            need_play_type = data[2]
+            anchor_level = data[3]
+            position = data[4]
+            ads_id = data[5]
+            enable = data[6]
+            logtime = data[7].isoformat()
+
+            description = data[8]
+            need_name = data[9]
+            lst.append({"need_id": need_id, "package_name": package_name, "need_play_type": need_play_type,
+                        "description": description,
+                        "anchor_level": anchor_level, "position": position, "ads_id": ads_id, "enable": enable,
+                        "logtime": logtime,
+                        "need_name": need_name})
+
+        count = self.db_ads.execute("select count(*) from({}) as count_data".format(sql)).scalar()
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = count
+        ret['data'] = lst
+
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+# 素材List
+
+class adsInfoFindByIdHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id = self.get_argument("id", None)
+        data = self.db_ads.query(AdsInfo).filter(AdsInfo.ads_id == id).first()
+        lst = json.loads(json.dumps(data, cls=AlchemyEncoder))
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+
+# 素材List
+
+class adsInfoSelect4AllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        ads_list = self.db_ads.query(AdsInfo).all()
+        lst = list()
+        for ptype in ads_list:
+            lst.append(json.loads(json.dumps(ptype, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+
+# ContractPackInfo    List
+class contPackInfoSelect4AllHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        ads_list = self.db_ads.query(ContractPackInfo).all()
+        lst = list()
+        for ptype in ads_list:
+            lst.append(json.loads(json.dumps(ptype, cls=AlchemyEncoder)))
+        self.write_raw_json(lst)
+
+        self.db_ads.close()
+
+
+####---------------合同---------------------------------
+class contractInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/contract_manager/contract_info/contractinfo_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        filter = args["filter"]
+        contractid = ''
+        if "search" in filter.keys():
+            contractid = filter["search"]
+        query = self.db_ads.query(AdsContractInfo)
+        if contractid:
+            # name = '%' + name + '%'
+            query = query.filter(AdsContractInfo.contract_id == contractid)
+        query_result = query.all()
+        total = query.count()
+
+        lst = list()
+        for item in query_result:
+            lst.append({
+                'contract_id': item.contract_id or '',
+                'contract_name': item.contract_name or '',
+                'contract_price': item.contract_price or '',
+                'adsver_id': item.adsver_id or '',
+                'contract_desc': item.contract_desc or '',
+                'create_time': item.create_time.isoformat() or '',
+            })
+        # print(lst)
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = total
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class contractAddInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        contract_name = self.get_argument("contract_name", None)
+        contract_price = self.get_argument("contract_price", None)
+        adsver_id = self.get_argument("adsver_id", None)
+        contract_desc = self.get_argument("contract_desc", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            # create_time = args["create_time"]
+            contract_name = args["contract_name"]
+            contract_price = args["contract_price"]
+            adsver_id = args["adsver_id"]
+            contract_desc = args["contract_desc"]
+
+        try:
+            date_now = datetime.datetime.now()
+            item = AdsContractInfo(contract_name=contract_name, contract_price=contract_price, adsver_id=adsver_id,
+                                   contract_desc=contract_desc,
+                                   create_time=date_now
+                                   )
+            self.db_ads.add(item)
+            self.db_ads.commit()
+
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class contractDelInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(AdsContractInfo).filter(AdsContractInfo.contract_id.in_(ids)).delete(
+                    synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+class contractEdInfoHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        contract_id = self.get_argument("contract_id", None)
+        contract_name = self.get_argument("contract_name", None)
+        contract_price = self.get_argument("contract_price", None)
+        adsver_id = self.get_argument("adsver_id", None)
+        contract_desc = self.get_argument("contract_desc", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            contract_id = args["contract_id"]
+            contract_name = args["contract_name"]
+            contract_price = args["contract_price"]
+            adsver_id = args["adsver_id"]
+            contract_desc = args["contract_desc"]
+
+        try:
+            self.db_ads.query(AdsContractInfo).filter(AdsContractInfo.contract_id == contract_id).update(
+                {AdsContractInfo.contract_name: contract_name, AdsContractInfo.contract_price: contract_price,
+                 AdsContractInfo.adsver_id: adsver_id, AdsContractInfo.contract_desc: contract_desc})
+            # sql_session.update({TStatUnionConfig.eff_airtime: time_len})
+
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class NeedInfoFindByIdIdHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id = self.get_argument("id", None)
+        data = self.db_ads.query(NeedInfo).filter(NeedInfo.need_id == id).first()
+        lst = json.loads(json.dumps(data, cls=AlchemyEncoder))
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+
+class NeedInfoAddHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        package_id = args["package_id"]
+        need_play_type = args["need_play_type"]
+        anchor_level = args["anchor_level"]
+        position = args["position"]
+        ads_id = args["ads_id"]
+        description = args["description"]
+        enable = args["enable"]
+        need_name = args["need_name"]
+        needinfo = NeedInfo()
+        needinfo.package_id = package_id
+        needinfo.need_play_type = need_play_type
+        needinfo.anchor_level = anchor_level
+        needinfo.position = position
+        needinfo.ads_id = ads_id
+        position_count = len(position.split(",")) if position is not None else 0
+        needinfo.position_count = position_count
+        needinfo.description = description
+        needinfo.enable = enable
+        needinfo.need_name = need_name
+        self.db_ads.add(needinfo)
+        try:
+            self.db_ads.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db_ads.close()
+
+
+class NeedInfoEditHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+        package_id = args["package_id"]
+        need_play_type = args["need_play_type"]
+        anchor_level = args["anchor_level"]
+        position = args["position"]
+        ads_id = args["ads_id"]
+        description = args["description"]
+        enable = args["enable"]
+        need_name = args["need_name"]
+        id = args["id"]
+        v_data = self.db_ads.query(NeedInfo).filter(NeedInfo.need_id == id).first()
+        v_data.package_id = package_id
+        v_data.need_play_type = need_play_type
+        v_data.anchor_level = anchor_level
+        v_data.position = position
+        v_data.ads_id = ads_id
+        v_data.description = description
+        v_data.enable = enable
+        v_data.need_name = need_name
+        position_count = len(position.split(",")) if position is not None else 0
+        v_data.position_count = position_count
+        try:
+            self.db_ads.commit()
+            self.write_json(0, "success")
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "系统错误")
+        finally:
+            self.db_ads.close()
+
+
+class needInfoDeleteHander(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(NeedInfo).filter(NeedInfo.need_id.in_(ids)).delete(synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+####---------------合同(对应的套餐包)---------------------------------
+class ContractPackageInfoHander(SwxJsonHandler):
+    def get(self, *args, **kwargs):
+        id = self.get_argument("id", None)
+        data = self.db_ads.query(ContractPackInfo).filter(ContractPackInfo.contract_id == id).first()
+        lst = json.loads(json.dumps(data, cls=AlchemyEncoder))
+        if data:
+            need_desc = json.loads(data.need_desc)
+            lst['S'] = str(need_desc['S'])
+            lst['A'] = str(need_desc['A'])
+            lst['B'] = str(need_desc['B'])
+            lst['C'] = str(need_desc['C'])
+            lst['D'] = str(need_desc['D'])
+
+        self.write_raw_json(lst)
+        self.db_ads.close()
+
+####---------------合同---------------------------------
+class ContractPackageInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    def get(self, *args, **kwargs):
+        self.render("/contract_manager/contract_info/contractinfo_list.mako")
+
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        limit, args = self.get_pages_args()
+        filter = args["filter"]
+        contractid = ''
+        if "search" in filter.keys():
+            contractid = filter["search"]
+        query = self.db_ads.query(ContractPackInfo)
+        if contractid:
+            # name = '%' + name + '%'
+            query = query.filter(ContractPackInfo.contract_id == contractid)
+        query_result = query.all()
+        total = query.count()
+
+        lst = list()
+        for item in query_result:
+            lst.append({
+                'contract_id': item.contract_id or '',
+                'contract_name': item.contract_name or '',
+                'contract_price': item.contract_price or '',
+                'adsver_id': item.adsver_id or '',
+                'contract_desc': item.contract_desc or '',
+                'create_time': item.create_time.isoformat() or '',
+            })
+        # print(lst)
+        ret = dict()
+        ret['page_index'] = limit['page_index']
+        ret['total'] = total
+        ret['data'] = lst
+        self.write_json(0, data=ret)
+        self.db_ads.close()
+
+
+class ContractAddPackageInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        contract_name = self.get_argument("contract_name", None)
+        contract_price = self.get_argument("contract_price", None)
+        adsver_id = self.get_argument("adsver_id", None)
+        contract_desc = self.get_argument("contract_desc", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            # create_time = args["create_time"]
+            contract_name = args["contract_name"]
+            contract_price = args["contract_price"]
+            adsver_id = args["adsver_id"]
+            contract_desc = args["contract_desc"]
+
+        try:
+            date_now = datetime.datetime.now()
+            item = AdsContractInfo(contract_name=contract_name, contract_price=contract_price, adsver_id=adsver_id,
+                                   contract_desc=contract_desc,
+                                   create_time=date_now
+                                   )
+            self.db_ads.add(item)
+            self.db_ads.commit()
+
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+class ContractDelPackageInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    def post(self, *args, **kwargs):
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            ids = args["ids"]
+        try:
+            if ids:
+                self.db_ads.query(AdsContractInfo).filter(AdsContractInfo.contract_id.in_(ids)).delete(
+                    synchronize_session=False)
+                self.db_ads.commit()
+                self.write_json(0, 'success')
+                # self.db.close()
+            else:
+                self.write_json(-1, '没有选中删除项')
+        except Exception as  e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "删除失败")
+        finally:
+            self.db_ads.close()
+
+
+class ContractEdPackageInfoHanderAll(SwxJsonHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def post(self, *args, **kwargs):
+
+        contract_id = self.get_argument("contract_id", None)
+        contract_name = self.get_argument("contract_name", None)
+        contract_price = self.get_argument("contract_price", None)
+        adsver_id = self.get_argument("adsver_id", None)
+        contract_desc = self.get_argument("contract_desc", None)
+
+        args = self.get_argument('args', None)
+        if args is not None:
+            args = json.loads(args)
+            contract_id = args["contract_id"]
+            contract_name = args["contract_name"]
+            contract_price = args["contract_price"]
+            adsver_id = args["adsver_id"]
+            contract_desc = args["contract_desc"]
+
+        try:
+            self.db_ads.query(AdsContractInfo).filter(AdsContractInfo.contract_id == contract_id).update(
+                {AdsContractInfo.contract_name: contract_name, AdsContractInfo.contract_price: contract_price,
+                 AdsContractInfo.adsver_id: adsver_id, AdsContractInfo.contract_desc: contract_desc})
+            # sql_session.update({TStatUnionConfig.eff_airtime: time_len})
+
+            self.db_ads.commit()
+            self.write_json(0)  # 将上传好的路径返回
+        except Exception as e:
+            self.db_ads.rollback()
+            log.e(e)
+            self.write_json(500, "更新失败")
+        finally:
+            self.db_ads.close()
+
+        self.db_ads.close()
+
+
+
+
+

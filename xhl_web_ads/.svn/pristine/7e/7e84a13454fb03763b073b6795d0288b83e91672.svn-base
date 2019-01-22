@@ -1,0 +1,317 @@
+<%!
+    page_title_ = '用户账户余额查询'
+    page_menu_ = ['financial', 'useraccountbalance']
+    page_id_ = 'useraccountbalance'
+%>
+<%inherit file="../../page_base.mako"/>
+<%block name="extend_js">
+    <script type="text/javascript" src="${ static_url('plugins/laydate/laydate.js') }"></script>
+    <script type="text/javascript"
+            src="${ static_url('js/ads_manager/accountbalancelist/account_balancel_list.js') }"></script>
+    <script type="text/javascript"
+            src="${ static_url('js/bootstrap-multiselect.js') }"></script>
+    <link href="${ static_url('css/style.css') }" rel="stylesheet">
+    <link href="${ static_url('css/bootstrap-multiselect.css') }" rel="stylesheet">
+
+
+</%block>
+<%block name="breadcrumb">
+    <ol class="breadcrumb">
+        <li><i class="fa fa-server fa-fw"></i> ${self.attr.page_title_}</li>
+    </ol>
+</%block>
+
+<div class="page-content">
+    <div class="box" id="accountbalancelist-list">
+        <!-- begin filter -->
+        <div class="page-filter" style="height: auto">
+            <div class="" style="float:right;">
+                <a href="javascript:;" class="btn btn-sm btn-primary" ywl-filter="reload"><i
+                        class="fa fa-repeat fa-fw"></i> 刷新</a>
+            </div>
+
+            <div class="input-group input-group-sm"
+                 style="display:inline-block;margin-right:10px; vertical-align: top;">
+                <span class="input-group-addon"
+                      style="display:inline-block;width:auto; line-height:28px;height:30px;padding:0 10px;font-size:13px;">用户身份</span>
+                <div class="input-group-btn" ywl-filter="user_type" style="display:inline-block;margin-left:-4px;"
+                     id="user_type">
+                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span>所有</span>
+                        <span class="caret"></span></button>
+                    <ul class="dropdown-menu" id="user_type" onchange="acc(this.value)">
+                        <li>所有</li>
+                    </ul>
+                </div>
+            </div>
+
+
+            <div class="input-group input-group-sm" ywl-filter="id_user_name" style="display:inline-block;"
+                 id="id_user_name">
+                <input type="text" class="form-control" placeholder="搜索用户昵称" style="display:inline-block;"
+                       maxlength="20">
+            </div>
+            <div class="input-group input-group-sm" ywl-filter="id_user_id" style="display:inline-block;"
+                 id="id_user_id">
+                <input type="text" class="form-control" placeholder="搜索用户ID" style="display:inline-block;"
+                       maxlength="20">
+            </div>
+            <div class="input-group input-group-sm" ywl-filter="room_id" style="display:inline-block;" id="room_id">
+                <input type="text" class="form-control" placeholder="搜索房间ID" style="display:inline-block;"
+                       maxlength="20">
+            </div>
+            <div class="input-group input-group-sm" ywl-filter="id_union_name" style="display:inline-block;"
+                 id="id_union_name">
+                <input type="text" class="form-control" placeholder="搜索公会名称" style="display:inline-block;"
+                       maxlength="20">
+            </div>
+            <div class="input-group input-group-sm" ywl-filter="id_union_id" style="display:inline-block;"
+                 id="id_union_id">
+                <input type="text" class="form-control" placeholder="搜索公会ID" style="display:inline-block;"
+                       maxlength="20">
+            </div>
+            <div class="input-group input-group-sm" ywl-filter="id_agent_id" style="display:inline-block;"
+                 id="id_agent_id">
+                <input type="text" class="form-control" placeholder="搜索经纪人ID" style="display:inline-block;"
+                       maxlength="20">
+            </div>
+            <div class="input-group input-group-sm" ywl-filter="id_agent_name" style="display:inline-block;"
+                 id="id_agent_name">
+                <input type="text" class="form-control" placeholder="搜索经纪人昵称" style="display:inline-block;"
+                       maxlength="20">
+            </div>
+
+
+            <div class="input-group input-group-sm" style="display:inline-block;vertical-align: top;">
+                <button type="button" class="btn btn-sm btn-default" ywl-filter="select">
+                    <i class="glyphicon glyphicon-search"></i> 查询
+                </button>
+            </div>
+        </div>
+        <!-- end filter -->
+
+        <!-- begin table -->
+        <table class="table table-striped table-bordered table-hover table-data no-footer dtr-inline"
+               toc-table="accountbalancelist-list"></table>
+        <!-- end table -->
+
+        <!-- begin page-nav -->
+        <div class="page-nav" ywl-paging="host-list">
+
+
+            <div class="" style="float:right;">
+                <nav>
+                    <ul class="pagination pagination-sm"></ul>
+                </nav>
+            </div>
+
+            <div style="float:right;margin-right:30px;">
+                <div class="breadcrumb-container">
+                    <ol class="breadcrumb">
+                        <li><i class="fa fa-list fa-fw"></i> 记录总数 <strong ywl-field="recorder_total">0</strong></li>
+                        <li>页数 <strong><span ywl-field="page_current">1</span>/<span
+                                ywl-field="page_total">1</span></strong></li>
+                        <li>每页显示
+                            <label>
+                                <select></select>
+                            </label>
+                            条记录
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+        </div>
+        <!-- end page-nav -->
+    </div>
+</div>
+
+<div class="modal fade" id="dialog-scheduleinfo-info" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document" style="width:80%">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">对应schedule_id信息</h3>
+            </div>
+            <div class="modal-body">
+                <form enctype="multipart/form-data" id="version-list-action">
+                    <table class="table table-bordered table-hover">
+                        <thead>
+                        <tr>
+                            <th>schedule_id</th>
+                            <th>分组名称</th>
+                            <th>投放量</th>
+                            <th>公式</th>
+                            <th>优先级</th>
+                            <th>日志时间</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td id="schedule_id"></td>
+                            <td id="group_name"></td>
+                            <td id="count"></td>
+                            <td id="anchor_if_exp"></td>
+                            <td id="lv_priority"></td>
+                            <td id="logtime"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i
+                        class="fa fa-close fa-fw"></i> 取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="dialog-taskplayloginfo-info" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document" style="width:80%">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">用户对应结算详情</h3>
+            </div>
+            <div class="modal-body">
+                <form enctype="multipart/form-data" id="version-list-action">
+                    <table class="table table-bordered table-hover" id="taskplayloginfo">
+                        <thead>
+                        <tr>
+                            <th>结算log ID</th>
+                            <th>公会ID</th>
+                            <th>经纪人ID</th>
+                            <th>用户ID</th>
+                            <th>任务ID</th>
+                            <th>playID</th>
+                            <th>平台ID</th>
+                            <th>房间ID</th>
+                            <th>描述</th>
+                            <th>结算价格</th>
+                            <th>结算类型</th>
+                            <th>结算来源</th>
+                            <th>时间</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                            ##                         <tr>
+                            ##                              'income_log_id': ptype.income_log_id or '',
+
+##                         </tr>
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i
+                        class="fa fa-close fa-fw"></i> 取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="dialog-playdetail-info" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">截图地址信息</h3>
+            </div>
+            <div class="modal-body">
+                <form enctype="multipart/form-data" id="version-list-action">
+                    <input type="hidden" id="ptype_id">
+                    <div class="form-horizontal">
+
+                        <div class="form-group form-group-sm" id="vtype-div">
+                            <div class="col-sm-12" id="shot_path">
+
+                            </div>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i
+                        class="fa fa-close fa-fw"></i> 取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="dialog-addincomelist-info" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">添加余额</h3>
+            </div>
+            <div class="modal-body">
+                <form enctype="multipart/form-data" id="version-list-action">
+                    <input type="hidden" id="ptype_id">
+                    <div class="form-horizontal">
+
+                        <div class="form-group form-group-sm">
+                            <label for="contract_price"
+                                   class="col-sm-3 control-label"><strong>添加余额：</strong></label>
+                            <div class="col-sm-6">
+                                <input id="income_num" type="number" maxlength="20" class="form-control"
+                                       placeholder="余额"/>
+                            </div>
+                        </div>
+
+                        <div class="form-group form-group-sm">
+                            <label for="adsver_id"
+                                   class="col-sm-3 control-label"><strong>play_id(必选)：</strong></label>
+                            <div class="col-sm-6">
+                                <input   min="0" type="number" oninput="if(value.length>10)value=value.slice(0,10)"
+                                       class="form-control" id="play_id"/>
+
+                                </div>
+                        </div>
+                        <div class="form-group form-group-sm">
+                            <label for="adsver_id"
+                                   class="col-sm-3 control-label"><strong>备注(必选)：</strong></label>
+                            <div class="col-sm-6">
+                                <textarea id="comment" style="height: 100px;width: 290px" type="text"
+                                              maxlength="200" class="form-control"></textarea>
+
+                                </div>
+                        </div>
+
+                        <div id="dlg-notice">
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-save"><i class="fa fa-check fa-fw"></i>
+                    确定
+                </button>
+                <button type="button" class="btn btn-sm btn-default" data-dismiss="modal"><i
+                        class="fa fa-close fa-fw"></i> 取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        laydate.render({
+            elem: '#date',
+            ##             value:GetDateStr(0),
+            done: function (value, date, endDate) {
+                $("#date").val(value);
+            }
+        });
+    });
+
+
+</script>

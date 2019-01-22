@@ -1,0 +1,210 @@
+﻿# -*- coding: utf-8 -*-
+# reload(sys)
+# sys.setdefaultencoding('utf8')
+
+import os,time
+import xlwt
+import pymysql
+from datetime import datetime, date
+from eom_app.app.configs import app_cfg
+from decimal import *
+from eom_app.controller.helper.identity import app_map
+
+cfg = app_cfg()
+
+
+def export(data,list,lits2):
+    # conn = pymysql.connect(host,user,password,dbname,charset='utf8')
+    # cursor = conn.cursor()
+    # print(data,list)
+    #
+    # count = cursor.execute('select * from '+table_name)
+    # print(count)
+    # # 重置游标的位置
+    # cursor.scroll(0,mode='absolute')
+    # # 搜取所有结果
+    # results = cursor.fetchall()
+    #
+    # # 获取MYSQL里面的数据字段名称
+    # fields = cursor.description
+    # print(data)
+    date_now = datetime.now()
+    date_now = date_now.strftime('%d%H%M%S')
+    datas = data[0]
+
+    workbook = xlwt.Workbook()
+    sheet = workbook.add_sheet('table_update', cell_overwrite_ok=True)
+    # print(fields)
+    # 写上字段信息\
+    # print(data)
+    fields = list
+    for field in range(0, len(fields)):
+        # print(field)
+        sheet.write(0, field, fields[field])
+    # print('222')
+    # 获取并写入数据段信息
+    row = 1
+    col = 0
+    # print(data[0])
+
+    for row in range(1, len(data) + 1):
+        # print(row)
+        # print(data[0])
+        # sheet.write(row, int(0), u'%s' % data[row-1][0])
+        sheet.write(row, int(0), u'%s' % data[row - 1]['id'])
+        # print('5656')
+        # sheet.write(row, int(1), u'%s' % data[row-1][2])
+        sheet.write(row, int(1), u'%s' % data[row - 1]['user_id'])
+        sheet.write(row, int(2), u'%s' % data[row - 1]['u_mobile_number'])
+        sheet.write(row, int(3), u'%s' % data[row - 1]['money'])
+        sheet.write(row, int(4), u'%s' % data[row - 1]['sevice_money'])
+        sheet.write(row, int(5), u'%s' % data[row - 1]['money_rp'])
+        sheet.write(row, int(6), u'%s' % data[row - 1]['create_time'])
+        sheet.write(row, int(7), u'%s' % data[row - 1]['bank_name'])
+        sheet.write(row, int(8), u'%s' % data[row - 1]['bank_card_number'])
+        sheet.write(row, int(9), u'%s' % data[row - 1]['bank_sub_name'])
+        sheet.write(row, int(10), u'%s' % data[row - 1]['hold_user_name'])
+        sheet.write(row, int(11), u'%s' % data[row - 1]['id_number'])
+        sheet.write(row, int(12), u'%s' % data[row - 1]['id_img_front'])
+        sheet.write(row, int(13), u'%s' % data[row - 1]['id_img_back'])
+        sheet.write(row, int(14), u'%s' % data[row - 1]['qq_number'])
+        sheet.write(row, int(15), u'%s' % data[row - 1]['money_balance'])
+        sheet.write(row, int(16), u'%s' % data[row - 1]['apply_name'])
+        # print('45454545')
+
+    # print(date_now)
+    xls_url = os.path.join(cfg.static_path, 'download/', '提现_' + str(date_now) + '.xls')
+    excel_url = '/static/download/' + '提现_' + str(date_now) + '.xls'
+    # print(xls_url)
+
+    workbook.save(xls_url)
+
+    # workbook.save('../static/download/'+str(date_now)+str(platform_id)+'.xlsx')
+
+    return excel_url
+
+def exportIncome(data, list, filename,income_type):
+        filename = filename if filename != "" else "_detail"
+        date_now = int(time.time())
+        workbook = xlwt.Workbook()
+        sheet = workbook.add_sheet('table_update', cell_overwrite_ok=True)
+        fields = list
+        for field in range(0, len(fields)):
+            sheet.write(0, field, fields[field])
+        row = 1
+        col = 0
+        # print(data[0])
+
+        for row in range(1, len(data) + 1):
+
+            if income_type == '1' or income_type == '4' or income_type == '3':
+                sheet.write(row, int(0), u'%s' % data[row - 1]['income_log_id'])
+
+                if income_type=='3':
+                    sheet.write(row, int(1), u'%s' % data[row - 1]['agent_name'])
+                else:
+                    sheet.write(row, int(1), u'%s' % data[row - 1]['plat_name'])
+                sheet.write(row, int(2), u'%s' % data[row - 1]['anchor_name'])
+                sheet.write(row, int(3), u'%s' % data[row - 1]['user_id'])
+                # sheet.write(row, int(4), u'%s' % data[row - 1]['income'])
+                # sheet.write(row, int(5), u'%s' % data[row - 1]['user_id'])
+                sheet.write(row, int(4), u'%s' % data[row - 1]['play_id'])
+                sheet.write(row, int(5), u'%s' % data[row - 1]['popularity'])
+                sheet.write(row, int(6), u'%s' % data[row - 1]['task_id'])
+                sheet.write(row, int(7), u'%s' % data[row - 1]['income_from'])
+                sheet.write(row, int(8), u'%s' % data[row - 1]['income'])
+                sheet.write(row, int(9), u'%s' % data[row - 1]['room_url'])
+            elif income_type=='2':
+                sheet.write(row, int(0), u'%s' % data[row - 1]['union_id'])
+                sheet.write(row, int(1), u'%s' % data[row - 1]['union_name'])
+                sheet.write(row, int(2), u'%s' % data[row - 1]['income_log_id'])
+                sheet.write(row, int(3), u'%s' % data[row - 1]['plat_name'])
+                sheet.write(row, int(4), u'%s' % data[row - 1]['anchor_name'])
+                sheet.write(row, int(5), u'%s' % data[row - 1]['user_id'])
+                # sheet.write(row, int(6), u'%s' % data[row - 1]['income'])
+                # sheet.write(row, int(7), u'%s' % data[row - 1]['user_id'])
+                sheet.write(row, int(6), u'%s' % data[row - 1]['play_id'])
+                sheet.write(row, int(7), u'%s' % data[row - 1]['popularity'])
+                sheet.write(row, int(8), u'%s' % data[row - 1]['task_id'])
+                sheet.write(row, int(9), u'%s' % data[row - 1]['income_from'])
+                sheet.write(row, int(10), u'%s' % data[row - 1]['income'])
+                sheet.write(row, int(11), u'%s' % data[row - 1]['room_url'])
+
+
+        xls_url = os.path.join(cfg.static_path, 'download/', str(date_now) + filename + '.xls')
+        excel_url = '/static/download/' + str(date_now) + filename + '.xls'
+
+        workbook.save(xls_url)
+
+        return excel_url
+
+def exportPlayRecord(data, list_name, filename):
+
+
+        filename = filename if filename != "" else "_播放记录"
+        date_now = int(time.time())
+        workbook = xlwt.Workbook()
+        sheet = workbook.add_sheet('table_update', cell_overwrite_ok=True)
+        fields = list_name
+        for field in range(0, len(fields)):
+            sheet.write(0, field, fields[field])
+        row = 1
+        col = 0
+        # print(data[0])
+
+        for row in range(1, len(data) + 1):
+
+            # sheet.write(row, int(0), u'%s' % data[row-1][0])
+            # sheet.write(row, int(0), u'%s' % data[row - 1]['play_id'])
+            # sheet.write(row, int(1), u'%s' % data[row-1][2])
+            sheet.write(row, int(0), u'%s' % data[row - 1][0].isoformat().replace("T", " ") if data[row - 1][0] is not None else '')
+            sheet.write(row, int(1), u'%s' % data[row - 1][1])
+            # sheet.write(row, int(3), u'%s' % data[row - 1]['anchor_level'])
+            # sheet.write(row, int(4), u'%s' % data[row - 1]['need_level'])
+            room_id=data[row - 1][5]
+            roomInfo = app_map().getRoomInfoById(room_id)
+            new_level=''
+            max_user_pre_count=''
+            source_link=''
+            if roomInfo:
+                source_link = roomInfo["source_link"]
+                max_user_pre_count = roomInfo["max_user_pre_count"]
+                new_level = roomInfo["new_level"]
+
+            sheet.write(row, int(2), u'%s' % data[row - 1][2])
+            sheet.write(row, int(3), u'%s' %new_level)
+            sheet.write(row, int(4), u'%s' % data[row - 1][3])
+            sheet.write(row, int(5), u'%s' % data[row - 1][4])
+            sheet.write(row, int(6), u'%s' % data[row - 1][5])
+            sheet.write(row, int(7), u'%s' % source_link)
+            sheet.write(row, int(8), u'%s' % data[row - 1][6].isoformat().replace("T", " ") if data[row - 1][6] is not None else '')
+            sheet.write(row, int(9), u'%s' % data[row - 1][7])
+            sheet.write(row, int(10), u'%s' % data[row - 1][8])
+            sheet.write(row, int(11), u'%s' % max_user_pre_count)
+            sheet.write(row, int(12), u'%s' % data[row - 1][9])
+            sheet.write(row, int(13), u'%s' % str(data[row - 1][10].quantize(Decimal('0.00'))) if data[row - 1][10] is not None else "")
+            sheet.write(row, int(14), u'%s' % data[row - 1][11])
+            sheet.write(row, int(15), u'%s' % str(data[row - 1][12].quantize(Decimal('0.00'))) if data[row - 1][12] is not None else "")
+            sheet.write(row, int(16), u'%s' % data[row - 1][13])
+            sheet.write(row, int(17), u'%s' % data[row - 1][14])
+            sheet.write(row, int(18), u'%s' % data[row - 1][15] if data[row - 1][15] is not None else '')
+            screen_shot_path = ''
+            if data[row - 1][16] is not None and data[row - 1][16] != '':
+                strlist = list()
+                arr = data[row - 1][16].split(',')
+                for i in arr:
+                    (filepath, tempfilename) = os.path.split(i)
+                    strlist.append(filepath)
+                screen_shot_path = ','.join(strlist)
+
+            sheet.write(row, int(19), u'%s' % screen_shot_path)
+            sheet.write(row, int(20), u'%s' % data[row - 1][17])
+            is_played="否" if data[row - 1][18]==1 else "是"
+            sheet.write(row, int(21), u'%s' % is_played)
+
+        xls_url = os.path.join(cfg.static_path, 'download', str(date_now) + filename + '.xls')
+        excel_url = r'/static/download/' + str(date_now) + filename + '.xls'
+
+        workbook.save(xls_url)
+
+        return excel_url

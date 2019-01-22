@@ -1,0 +1,1045 @@
+var v_dlg=null
+var host_table=null
+var play_status=null
+var play_verify_status=null
+var play_verify_result=null
+var play_account=null
+var play_pack_id=null
+var show_type=$("#show_type").val()
+function getRoominfo(that) {
+	var source_link=$(that).attr("value");
+	if(source_link=="null"||source_link==''){
+	    alert("暂时无法获取直播间地址");
+	    return;
+    }
+    window.open(source_link);
+}
+
+function show_needInfo(id) {
+    $.get("/needinfo/selectById?id=" + id, function (ret) {
+
+        if (ret && ret.length > 0) {
+            $('#need_name').val(ret[0].need_name);
+            $('#package_name').val(ret[0].package_name);
+            if (ret[0].need_play_type) {
+                var type = ret[0].need_play_type;
+                $('#need_play_type').val(type == 1 ? "大广告" : type == 2 ? "角标播放" : "未知");
+            }
+
+            $('#description').val(ret[0].description);
+            $(":radio[name='enable'][value='" + ret[0].enable + "']").prop("checked", true);
+            $("#dialog-needinfo-info").modal()
+        } else {
+            alert("没有找到对应数据");
+        }
+    })
+
+}
+
+function showDetail(that) {
+
+    if ($(that).attr("value") && $(that).attr("value") != "null" && $(that).attr("value") != "") {
+        var arr = $(that).attr("value").split(",");
+        var node = '';
+        for (r in arr) {
+
+            node += '<a href=' + arr[r].replace("pic.hub520.com", "pic.xiaohulu.com") + ' target="_blank">' + arr[r].replace("pic.hub520.com", "pic.xiaohulu.com") + '</a>' + "<br/>";
+        }
+        $("#shot_path").empty();
+        $("#shot_path").html(node);
+        $("#dialog-playdetail-info").modal();
+
+    }else {
+        alert("该播放记录暂无截图信息");
+    }
+
+}
+function showVedioDetail(that) {
+    var url=$(that).attr('value');
+    if(url&&url!=''&&url!="null"){
+        window.open(url);
+    }else {
+        alert("该播放记录暂无视频信息");
+    }
+}
+
+ywl.on_init = function (cb_stack, cb_args) {
+    var dom_id = '#playrecord-list';
+    // var tbl_dom_id = '#ywl_host_list';
+    //===================================
+    // 创建页面控件对象
+    //===================================
+    var host_table_options = {
+        selector: dom_id + " [toc-table='playrecord-list']",
+        data_source: {
+            type: 'ajax-post',
+            url: '/playrecord/list'
+        },
+        column_default: {sort: false, header_align: 'center', cell_align: 'center'},
+        columns: [
+            {
+                title: '<input type="checkbox" id="host-select-all" value="">',
+                key: 'select_all',
+                sort: false,
+                width: 20,
+                render: 'make_check_box',
+                fields: {id: 'id'}
+            },
+            {title: "play_id", key: "play_id",width: 30},
+            {title: "用户id", key: "user_id",width: 50},
+            {title: "房间id", key: "room_id",width: 50,render: 'format_roominfo',
+                fields: {source_link: 'source_link',room_id:"room_id"}},
+            {title: "需求id", key: "need_id",width: 50, render:"format_needinfo",
+                    fields: {need_id: 'need_id'}},
+            {title: "是否结算", key: "close_account",width: 50, render:'formatAccount',fields:{close_account:'close_account'}},
+            {title: "套餐名", key: "package_name",width: 100},
+            {title: "人气", key: "popularity",width: 50, render:'formatpop',fields:{popularity:'popularity'}},
+            {title: "人气来源", key: "popularity_from",width: 50,render:'formatpop',fields:{popularity:'popularity'}},
+            {title: "播放状态", key: "status",width: 50,render: "formatstatus",
+                fields: {status:"status"}},
+            {title: "播放时间", key: "begin_time",width: 50,render: 'format_time',
+                fields: {logtime: 'begin_time'}},
+            {title: "结算金额", key: "income",width: 50,render:'format_income', fields: {income: 'income'}},
+            {title: "审核状态", key: "verify_status",width: 50,render: "formatvs",
+                fields: {verify_status:"verify_status"}},
+            {title: "审核结果", key: "verify_result",width: 50,render: "formatvr",
+                fields: {verify_result:"verify_result"}},
+            {title: "审核人", key: "verify_user",width: 50},
+
+            {
+                title: "视频",
+                key: "record_path",
+                width: 10,
+                render: "link_record",
+                fields: {record_path:"record_path"}
+            },
+            {
+                title: "截图",
+                key: "screen_shot_path",
+                width: 10,
+                render: "formatShotPath",
+                fields: { screen_shot_path:"screen_shot_path"}
+            },
+            {
+                title: "任务创建时间", key: "create_time", width: 50, render: 'format_time',
+                fields: {logtime: 'create_time'}
+            }
+        ],
+        paging: {selector: dom_id, per_page: paging_normal},
+
+        // 可用的属性设置
+        have_header: true,
+
+        // 可用的回调函数
+        on_created: ywl.on_host_table_created,
+        on_header_created: ywl.on_host_table_header_created
+
+    };
+
+    //初始化日期
+    var show_date=$("#show_date").val()
+    if (show_date){
+        document.getElementById("begin_time").value = "" + getFormatDate(show_date) + "";
+    }else{
+        document.getElementById("begin_time").value = "" + getDate() + "";
+    }
+
+     host_table = ywl.create_table(host_table_options);
+
+    $(dom_id + " [ywl-filter='reload']").click(host_table.reload);
+
+    $("[ywl-filter='import']").click(function () {
+        $("#dialog-import-info").modal();
+    })
+
+    function progressHandlingFunction(e) {
+        var excel_file = $("#excel_file").val()
+        if (excel_file && excel_file != "") {
+            if (e.lengthComputable) {
+                $('#process_data1').attr({value: e.loaded, max: e.total}); //更新数据到进度条
+                var percent = e.loaded / e.total * 100;
+                $('#progress1').html(e.loaded + "/" + e.total + " bytes. " + percent.toFixed(2) + "%");
+            }
+        }
+    }
+
+    $("#dialog-verify-info" + " #btn-save").click(function () {
+        var play_id=$("#dialog-verify-info #play_id").val()
+        var verify_result=$("#dialog-verify-info #verify_result").val();
+        if(!verify_result||verify_result==''||verify_result==undefined){
+            alert("请选择审核结果");
+            return;
+        }
+        function _fn_sure() {
+            ywl.ajax_post_json_time_out('/playrecord/audit', {id:play_id,"verify_result":verify_result}, 1000 * 30,
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        host_table.reload();
+                        $("#dialog-verify-info").modal('hide');
+                        ywl.notify_success('审核成功！');
+                    } else {
+                        ywl.notify_error('审核失败！' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，审核失败！');
+                }
+            );
+        }
+
+        var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要将此播放记录设置为已审核吗？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+    })
+
+    $("#dialog-import-info" + " #btn-save").click(function () {
+        var that=$(this);
+        var t = null  //定时对象
+        var playnum = null  //task编号
+        $.get("/playrecord/create", function (ret) {
+                playnum = ret.data
+                var fileInput = $("#excel_file")[0];
+                if (fileInput && fileInput.files.length != 0) {
+                    byteSize = fileInput.files[0].size;
+                    //step-2  定时获取文件上传进度
+                    t = setInterval(function () {
+                        $.get("/playrecord/import/select", {playnum: playnum}, function (ret) {
+                            if (ret.code === TPE_OK) {
+                                if (ret.data && ret.data["max"] != 0) {
+                                    $('#process_data2').attr({value: ret.data["now"], max: ret.data["max"]}); //更新数据到进度条
+                                    var percent = ret.data["now"] / ret.data["max"] * 100;
+                                    $('#progress2').html(ret.data["now"] + "/" + ret.data["max"] +"     "+ percent.toFixed(2) + "%");
+                                }
+                            } else {
+                                    ywl.notify_error('获取进度信息失败：' + ret.message);
+                                }
+                            }
+                        );
+                    }, 200);
+                }
+                that.attr("disbaled",'disabled');
+                //step-3  开始文件上传，提交表单
+                // var ads_materialurl = $("#ads_materialurl")[0].files[0];        //获取上传文件名称
+                var files = document.getElementById('excel_file').files;
+                if (!files.length) {
+                    alert('请选择文件!');
+                    return;
+                }
+                var form = new FormData();
+                var file = files[0];
+                form.append("infile", file);
+                form.append("playnum", playnum);
+                $.ajax({                                    //jquery的ajax提交
+                    type: 'POST',
+                    url: '/playrecord/import',
+                    data: form,                             //提交数据为表单对象
+                    processData: false,                     //默认为 true，数据被处理为 URL 编码格式。如果为 false，则阻止将传入的数据处理为 URL 编码的格式。
+                    contentType: false,                     //指 定 请 求 内 容 的 类 型
+                    success: function (ret) {
+                        clearInterval(t);    //删除定时请求
+                        var obj1 = document.getElementById('excel_file');
+                        obj1.outerHTML = obj1.outerHTML
+                        that.removeAttr("disabled");
+                        if (ret.code === TPE_OK) {
+                            host_table.reload();
+                            ywl.notify_success('添加成功！');
+                            $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress1').html("0 bytes");
+                            $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                            $('#progress2').html("0 bytes");
+                            $("#dialog-import-info").modal('hide');
+                        }
+                        else {
+                            ywl.notify_error('添加失败：' + ret.message);
+                        }
+                    },
+                    error: function (xhr, errorText, errorStatus) {  //如果发生错误，返回错误信息
+                        that.removeAttr("disabled");
+                         var obj1 = document.getElementById('excel_file');
+                        obj1.outerHTML = obj1.outerHTML
+                        $('#process_data1').attr({value: 0, max: 0}); //更新数据到进度条
+                        $('#progress1').html("0 bytes");
+                        $('#process_data2').attr({value: 0, max: 0}); //更新数据到进度条
+                        $('#progress2').html("0 bytes");
+                        clearInterval(t);                       //删除定时请求
+                        ywl.notify_error('网络故障，添加失败！');
+                    },
+                    xhr: function () { //获取ajaxSettings中的xhr对象，为它的upload属性绑定progress事件的处理函数
+                        myXhr = $.ajaxSettings.xhr();
+                        if (myXhr.upload) { //检查upload属性是否存在
+                            //绑定progress事件的回调函数
+                            myXhr.upload.addEventListener('progress', progressHandlingFunction, false);
+                        }
+                        return myXhr; //xhr对象返回给jQuery使用
+                    }
+
+                })
+
+
+            }
+        );
+    })
+
+
+
+
+    $("[ywl-filter='export']").click(function () {
+        $("#playlog-export-info").modal()
+        var that = $(this);
+        var t = null  //定时对象
+        var playnum = null  //task编号
+        $.get("/playrecord/export/create", function (ret) {
+            playnum = ret.data
+            //step-2  定时获取文件上传进度
+            t = setInterval(function () {
+                $.get("/playrecord/export/select", {playnum: playnum}, function (ret) {
+                        if (ret.code === TPE_OK) {
+                            if (ret.data && ret.data["max"] != 0) {
+                                $('#process_data3').attr({value: ret.data["now"], max: ret.data["max"]}); //更新数据到进度条
+                                var percent = ret.data["now"] / ret.data["max"] * 100;
+                                $('#progress3').html(ret.data["now"] + "/" + ret.data["max"] + "     " + percent.toFixed(2) + "%");
+                            }
+                        } else {
+                            ywl.notify_error('获取进度信息失败：' + ret.message);
+                        }
+                    }
+                );
+            }, 200);
+            // }
+            //step-3  开始文件上传，提交表单
+            // var ads_materialurl = $("#ads_materialurl")[0].files[0];        //获取上传文件名称
+            that.attr("disabled", 'disabled');
+            // var that = $(this)
+            var room_id = $("#room_id").val()
+            var begin_time = $("#begin_time").val()
+            var user_id = $("#user_id").val()
+            play_verify_status = play_verify_status ? play_verify_status : "";
+            play_status = play_status ? play_status : "";
+            play_verify_result = play_verify_result ? play_verify_result : "";
+            play_account = play_account ? play_account : "";
+            play_pack_id = play_pack_id ? play_pack_id : "";
+
+            var isFirefox = /firefox/i.test(navigator.userAgent);
+            that.attr("disabled", "disabled");
+            var parm = {
+                begin_time: begin_time, room_id: room_id, user_id: user_id, verify_status: play_verify_status,
+                status: play_status, verify_result: play_verify_result,playnum:playnum,
+                package_id:play_pack_id,is_account:play_account
+            }
+            $.ajax({                                    //jquery的ajax提交
+                type: 'POST',
+                url: '/playrecord/export',
+                data: parm,                             //提交数据为表单对象
+                success: function (ret) {
+
+                    // layer.closeAll('loading');
+                    clearInterval(t);    //删除定时请求
+                    that.removeAttr("disabled");
+                    $("#playlog-export-info").modal('hide')
+                    $('#process_data3').attr({value: 0, max: 0}); //更新数据到进度条
+                    $('#progress3').html("0 bytes");
+                    var url = ret.data;
+                    {
+                        if (!url) return;
+                        if (isFirefox) {
+                            window.location.href = url
+                        } else {
+                            a = document.createElement('a')
+                            a.download = url.replace(/.+\/([^/]+\.\w+)(?:\?.*)?$/, '$1')
+                            a.href = url
+                            a.click()
+                        }
+                    }
+                },
+                error: function (xhr, errorText, errorStatus) {  //如果发生错误，返回错误信息
+                    $("#playlog-export-info").modal('hide');
+                    that.removeAttr("disabled");
+                    $('#process_data3').attr({value: 0, max: 0}); //更新数据到进度条
+                    $('#progress3').html("0 bytes");
+                    clearInterval(t);                       //删除定时请求
+                    ywl.notify_error('网络故障，excel导出失败！');
+                }
+            })
+        });
+    });
+
+    $(dom_id + " [ywl-filter='select']").click(function () {
+        host_table.load_data(cb_stack, {})
+    });
+    v_dlg = ywl.create_playrecord_dlg(host_table);
+
+    $("#btn-add-host").click(function () {
+         v_dlg.create_show();
+    })
+
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='room_id']","","room_id");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='user_id']","","user_id");
+    ywl.create_table_filter_status_list(host_table, dom_id + " [ywl-filter='status']");
+    ywl.create_table_filter_verifys_list(host_table, dom_id + " [ywl-filter='verify_status']");
+    ywl.create_table_filter_verifyr_list(host_table, dom_id + " [ywl-filter='verify_result']");
+    ywl.create_table_filter_account_list(host_table, dom_id + " [ywl-filter='is_account']");
+    ywl.create_table_filter_package_list(host_table, dom_id + " [ywl-filter='package_type']");
+    ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='begintime']","","begintime");
+    // ywl.create_table_filter_search_box(host_table, dom_id + " [ywl-filter='endtime']","","endtime");
+    cb_stack
+        .add(host_table.load_data)
+        .add(host_table.init)
+        .exec();
+};
+
+
+ywl.create_playrecord_dlg = function (tbl) {
+    var playrecord_dlg = {};
+    playrecord_dlg.dom_id = "#dialog-playrecord-info";
+    playrecord_dlg.update = 1;
+    playrecord_dlg.tbl = tbl;
+    playrecord_dlg.play_id = '';
+    playrecord_dlg.income = '';
+    playrecord_dlg.row_id = 0;
+
+    playrecord_dlg.update_show = function (play_id,  income) {
+        playrecord_dlg.update = 1;
+        playrecord_dlg.init(play_id,  income);
+        $('#dlg-notice').hide();
+        $(playrecord_dlg.dom_id).modal();
+    };
+
+
+    playrecord_dlg.hide = function () {
+        $(playrecord_dlg.dom_id).modal('hide');
+    };
+
+    playrecord_dlg.init = function (play_id,  income) {
+        playrecord_dlg.play_id = play_id;
+        playrecord_dlg.income = income;
+        playrecord_dlg.init_dlg();
+    };
+    playrecord_dlg.init_dlg = function () {
+        $(playrecord_dlg.dom_id + ' #income').val(playrecord_dlg.income);
+    };
+
+    playrecord_dlg.check_args = function () {
+        var income=$(playrecord_dlg.dom_id + ' #income').val()
+        if(income==""||income==undefined){
+            alert("金额不能为空")
+            return
+        }
+        playrecord_dlg.income = income;
+        return true;
+    };
+
+    playrecord_dlg.post =function () {
+
+        if (playrecord_dlg.update === 1) {
+            ywl.ajax_post_json('/playrecord/edit', {
+                    income: playrecord_dlg.income,
+                    play_id: playrecord_dlg.play_id
+                },
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        playrecord_dlg.tbl.reload();
+                        ywl.notify_success('补贴操作成功！');
+                        playrecord_dlg.hide();
+                    } else {
+                        ywl.notify_error('补贴操作失败：' + ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，补贴操作失败！');
+                }
+            );
+        }
+
+    }
+    $(playrecord_dlg.dom_id + " #btn-save").click(function () {
+        if (!playrecord_dlg.check_args()) {
+            return;
+        }
+        playrecord_dlg.post();
+    });
+    return playrecord_dlg
+};
+
+
+ywl.on_host_table_header_created = function (tbl) {
+    $('#host-select-all').click(function () {
+        var _is_selected = $(this).is(':checked');
+        $(tbl.selector + ' tbody').find('[data-check-box]').prop('checked', _is_selected);
+    });
+};
+// 扩展/重载表格的功能
+ywl.on_host_table_created = function (tbl) {
+
+    tbl.on_cell_created = function (row_id, col_key, cell_obj) {
+        if (col_key === 'select_all') {
+            // 选择
+            $('#host-select-' + row_id).click(function () {
+                var _all_checked = true;
+                var _objs = $(tbl.selector + ' tbody').find('[data-check-box]');
+                $.each(_objs, function (i, _obj) {
+                    if (!$(_obj).is(':checked')) {
+                        _all_checked = false;
+                        return false;
+                    }
+                });
+
+                var select_all_dom = $('#host-select-all');
+                if (_all_checked) {
+                    select_all_dom.prop('checked', true);
+                } else {
+                    select_all_dom.prop('checked', false);
+                }
+            });
+
+        }else if (col_key==="action"){
+            var row_data = tbl.get_row(row_id);
+
+            $(cell_obj).find('[ywl-btn-audit]').click(function () {
+
+                $("#dialog-verify-info #play_id").val(row_data.play_id);
+                $("#dialog-verify-info").modal();
+            });
+            $(cell_obj).find('[ywl-btn-edit]').click(function () {
+                  v_dlg.update_show(row_data.play_id,row_data.income)
+            });
+        }
+    };
+
+    // 重载表格渲染器的部分渲染方式，加入本页面相关特殊操作f成功
+    tbl.on_render_created = function (render) {
+
+        var url='http://download.xiaohulu.com/obs/adsdownload/'
+
+        render.make_check_box = function (row_id, fields) {
+            return '<span><input type="checkbox" data-check-box="' + fields.id + '" id="host-select-' + row_id + '"></span>';
+        };
+        render.format_time = function (row_id, fields) {
+            return '<span class="badge badge-primary mono">' + fields.logtime.replace("T", " ") + ' </span>';
+        };
+
+        render.make_action_btn = function (row_id, fields) {
+            var ret = [];
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-audit="' + fields.ID + '">审核</a>&nbsp');
+            ret.push('<a href="javascript:;" class="btn btn-sm btn-primary" protocol=' + fields.protocol + ' ywl-btn-edit="' + fields.ID + '">补贴</a>&nbsp');
+            return ret.join('');
+        }
+
+
+        render.moviedown = function (row_id, fields) {
+            return fields.ads_materialurl?'<a href="'+url+fields.ads_id+'/'+fields.ads_materialurl+'" target="_blank">' +fields.ads_materialurl+ ' </a>':"<label style='color: #0eb320'>--</label>";
+        };
+
+        render.picturedown = function (row_id, fields) {
+            return fields.ads_thumbnailurl?'<a href="'+url+fields.ads_id+'/'+fields.ads_thumbnailurl+'" target="_blank">' +fields.ads_thumbnailurl+ ' </a>':"<label style='color: #0eb320'>--</label>";
+        };
+
+        render.formatShotPath = function (row_id, fields) {
+            return '<a href="javascript:void(0)" onclick="showDetail(this)" class="btn btn-sm btn-primary" value=' + fields.screen_shot_path + '>查看</a>'
+        };
+         render.link_record = function (row_id, fields) {
+            return '<a href="javascript:void(0)" onclick="showVedioDetail(this)" class="btn btn-sm btn-primary" value=' + fields.record_path + '>查看</a>'
+        };
+         render.formatstatus = function (row_id, fields) {
+             var temp='未知'
+            if(fields.status==0){
+                temp='<span class="badge badge-warning mono">未开始</span>'
+            }else if(fields.status==1){
+                temp='<span class="badge badge-primary mono">开始</span>'
+            }else if (fields.status==2){
+                temp='<span class="badge badge-success mono">已结束</span>'
+            }
+            return '<label style="color: red">'+temp+'</label>'
+         };
+         render.formatvs = function (row_id, fields) {
+             var temp='未知'
+            if(fields.verify_status==0){
+                temp='<span class="badge badge-danger mono">未审核</span>'
+            }else if(fields.verify_status==1){
+                temp='<span class="badge badge-success mono">已审核</span>'
+            }
+            return '<label style="color: red">'+temp+'</label>'
+         };
+         render.formatvr = function (row_id, fields) {
+             var temp='未知'
+            if(fields.verify_result==0){
+                temp='<span class="badge badge-success mono">成功</span>'
+            }else if(fields.verify_result==-1){
+                temp='<span class="badge badge-warning mono">初始状态</span>'
+            }else {
+                temp='<span class="badge badge-danger mono">失败</span>'
+            }
+            return '<label style="color: red">'+temp+'</label>'
+         };
+          render.format_income = function (row_id, fields) {
+
+            return '<label style="color: red">￥'+fields.income+'</label>'
+
+        };
+          render.formatpop = function (row_id, fields) {
+            return fields.popularity?fields.popularity:"<label style='color: #0eb320'>--</label>";
+        };
+           render.format_roominfo = function (row_id, fields) {
+
+               var room_id=fields.room_id==null?'':fields.room_id
+            return '<a href="javascript:void (0);" onclick="getRoominfo(this)" value='+fields.source_link+' >'+room_id+'</a>'
+
+        };
+        render.format_needinfo = function (row_id, fields) {
+            return '<a href="javascript:void(0)" onclick="show_needInfo(' + fields.need_id + ')">' +fields.need_id + '</a>'
+        };
+        render.formatAccount = function (row_id, fields) {
+            var temp=''
+            if(fields.close_account==0){
+                temp='<span class="badge badge-danger mono">No</span>'
+
+            }else if (fields.close_account==1){
+                temp='<span class="badge badge-success mono">Yes</span>'
+
+            }
+            return temp
+
+        };
+    };
+};
+
+
+ywl.create_table_filter_status_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'status';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		// _ret["package_id"] = $("#package_id").val();
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-status-from="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		node+='<li><a href="javascript:;" ywl-status-from="' + 0+ '"> 未开始 </a></li>'
+		node+='<li><a href="javascript:;" ywl-status-from="' + 1+ '"> 开始 </a></li>'
+		node+='<li><a href="javascript:;" ywl-status-from="' + 2 + '">已结束 </a></li>'
+		node+='<li><a href="javascript:;" ywl-status-from="' + 3 + '">开始+已结束 </a></li>'
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('全部');
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-status-from]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var status = $(this).attr("ywl-status-from");
+		var status_html = $(this).html();
+        play_status=status
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = status;
+				$(_tblf_st.selector + ' button span:first').html(status_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+ywl.create_table_filter_verifys_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'verify_status';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+	if(show_type=='2'||show_type=='1'){
+        _tblf_st.filter_default = '1';
+    }
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		// _ret["package_id"] = $("#package_id").val();
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-verifys-from="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		node+='<li><a href="javascript:;" ywl-verifys-from="' + 0+ '"> 未审核 </a></li>'
+		node+='<li><a href="javascript:;" ywl-verifys-from="' + 1+ '"> 已审核 </a></li>'
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+        if(show_type=='2'||show_type=='1'){
+            $(_tblf_st.selector + ' button span:first').html('已审核');
+        }else {
+            $(_tblf_st.selector + ' button span:first').html('全部');
+
+        }
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-verifys-from]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var verifys = $(this).attr("ywl-verifys-from");
+		var verifys_html = $(this).html();
+        play_verify_status=verifys
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = verifys;
+				$(_tblf_st.selector + ' button span:first').html(verifys_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+ywl.create_table_filter_verifyr_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'verify_result';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+	if(show_type=='2'){
+        _tblf_st.filter_default = '0';
+
+    }
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		// _ret["package_id"] = $("#package_id").val();
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-verifyr-from="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+        node+='<li><a href="javascript:;" ywl-verifyr-from="' + -1+ '"> 初始状态 </a></li>'
+		node+='<li><a href="javascript:;" ywl-verifyr-from="' + 0+ '"> 成功 </a></li>'
+		node+='<li><a href="javascript:;" ywl-verifyr-from="' + 1+ '"> 失败 </a></li>'
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+		if(show_type=='2'){
+            $(_tblf_st.selector + ' button span:first').html('成功');
+
+        }else {
+            $(_tblf_st.selector + ' button span:first').html('全部');
+
+        }
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-verifyr-from]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var verifyr = $(this).attr("ywl-verifyr-from");
+		var verifyr_html = $(this).html();
+        play_verify_result=verifyr
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = verifyr;
+				$(_tblf_st.selector + ' button span:first').html(verifyr_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+ywl.create_table_filter_package_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'package_id';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		// _ret["package_id"] = $("#package_id").val();
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var pack_list = ywl.page_options.packageList;
+		node += '<li><a href="javascript:;" ywl-pack-from="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		$.each(pack_list, function (i, p) {
+			node += '<li><a href="javascript:;" ywl-pack-from="' + p[0] + '">' + p[1] + '</a></li>';
+		});
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+        $(_tblf_st.selector + ' button span:first').html('全部');
+
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-pack-from]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var pack = $(this).attr("ywl-pack-from");
+		var pack_html = $(this).html();
+        play_pack_id=pack
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = pack;
+				$(_tblf_st.selector + ' button span:first').html(pack_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+ywl.create_table_filter_account_list = function (tbl, selector, on_created) {
+	var _tblf_st = {};
+
+	// 此表格绑定的DOM对象的ID，用于JQuery的选择器
+	_tblf_st.selector = selector;
+	// 此过滤器绑定的表格控件
+	_tblf_st._table_ctrl = tbl;
+	_tblf_st._table_ctrl.append_filter_ctrl(_tblf_st);
+
+	// 过滤器内容
+	_tblf_st.filter_name = 'is_account';
+	_tblf_st.filter_default = '';
+	_tblf_st.filter_value = '';
+    // if(show_type=='2'){
+    //     _tblf_st.filter_default = '0';
+    //
+    // }
+
+	_tblf_st.get_filter = function () {
+		var _ret = {};
+		_ret[_tblf_st.filter_name] = _tblf_st.filter_value;
+		// _ret["package_id"] = $("#package_id").val();
+		return _ret;
+	};
+
+	_tblf_st.reset = function (cb_stack, cb_args) {
+		if (_tblf_st.filter_value == _tblf_st.filter_default) {
+			cb_stack.exec();
+			return;
+		}
+
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = _tblf_st.filter_default;
+				$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+				cb_stack.exec();
+			});
+	};
+
+	_tblf_st.init = function (cb_stack) {
+		var node = '';
+		var user_list = ywl.page_options.user_list;
+		node += '<li><a href="javascript:;" ywl-account-from="">全部</a></li>';
+		node += '<li role="separator" class="divider"></li>';
+		node+='<li><a href="javascript:;" ywl-account-from="' + 0+ '"> 未结算 </a></li>'
+		node+='<li><a href="javascript:;" ywl-account-from="' + 1+ '"> 已结算 </a></li>'
+		_tblf_st.filter_value = _tblf_st.filter_default;
+		$(_tblf_st.selector + ' button span:first').html(_tblf_st.filter_value);
+		$(_tblf_st.selector + ' ul').empty().append($(node));
+
+        $(_tblf_st.selector + ' button span:first').html('全部');
+
+		// 点击事件绑定
+		$(_tblf_st.selector + ' ul [ywl-account-from]').click(_tblf_st._on_select);
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_st);
+		}
+
+		cb_stack.exec();
+	};
+
+	_tblf_st._on_select = function () {
+		var account = $(this).attr("ywl-account-from");
+		var account_html = $(this).html();
+        play_account=account
+		var cb_stack = CALLBACK_STACK.create();
+		cb_stack
+			.add(function (cb_stack) {
+				_tblf_st.filter_value = account;
+				$(_tblf_st.selector + ' button span:first').html(account_html);
+				cb_stack.exec();
+			});
+		cb_stack.exec();
+	};
+
+	return _tblf_st;
+};
+
+ywl.create_table_filter_search_box = function (tbl, selector, on_created,filter_name) {
+	var _tblf_sb = {};
+	// 此过滤器绑定的DOM对象，用于JQuery的选择器
+	_tblf_sb.selector = selector;
+
+	// 此过滤器绑定的表格控件
+	_tblf_sb._table_ctrl = tbl;
+	_tblf_sb._table_ctrl.append_filter_ctrl(_tblf_sb);
+
+	// 过滤器内容
+	_tblf_sb.filter_name = filter_name;
+	_tblf_sb.filter_default = '';
+
+	_tblf_sb.get_filter = function () {
+		var _val = $(_tblf_sb.selector + " input").val();
+		var _ret = {};
+		_ret[_tblf_sb.filter_name] = _val;
+		return _ret;
+	};
+
+
+
+	_tblf_sb.init = function (cb_stack, cb_args) {
+		// 绑定搜索按钮点击事件
+		// $(_tblf_sb.selector + " button").click(function () {
+		// 	_tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+		// });
+		// 绑定搜索输入框中按下回车键
+		$(_tblf_sb.selector + " input").keydown(function (event) {
+			if (event.which == 13) {
+				_tblf_sb._table_ctrl.load_data(CALLBACK_STACK.create(), {});
+			}
+		});
+
+		if (_.isFunction(on_created)) {
+			on_created(_tblf_sb);
+		}
+
+		cb_stack.exec();
+	};
+
+	return _tblf_sb;
+};

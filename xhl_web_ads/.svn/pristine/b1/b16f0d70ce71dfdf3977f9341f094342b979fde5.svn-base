@@ -1,0 +1,31 @@
+# -*- coding: utf-8 -*-
+from . import toc
+from . import ads
+
+
+# from . import error
+# from . import support
+
+__all__ = ['controllers']
+
+controllers = [
+    (r'/', toc.LoginHandler),
+    (r'/signout', toc.SignOutHander),
+    (r'/login', toc.LoginHandler),
+    (r'/pwd/update', toc.PwdUpdateHander),
+    (r'/get/task/gen', toc.getTask4UploadHander),
+    (r'/get/task/process', toc.getTaskProcessHander),
+
+    (r'/get/RandomCode', toc.RandomCode),
+    (r'/user', toc.UserHander),
+    (r'/index', toc.IndexHandler),
+
+
+    (r'/adsinfo/list', ads.AdsInfoHander),
+    (r'/adsinfo/add', ads.adsinfoAddHander),
+    (r'/adsinfo/edit', ads.adsinfoEditHander),
+    (r'/adsinfo/delete', ads.adsInfoDeleteHander),
+
+
+
+]

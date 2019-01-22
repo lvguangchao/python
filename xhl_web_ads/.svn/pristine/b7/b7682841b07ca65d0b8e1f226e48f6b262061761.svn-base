@@ -1,0 +1,214 @@
+function show_detail(package_name, begin_time,
+                     end_time, need_desc, ads_play_num_desc, serving_meth, is_allow_repeat, adser) {
+    document.getElementById("adscal-list-action").reset();
+    // 清空checkbox
+    $('input:checkbox').each(function () {
+        $(this).prop('checked', false);
+    })
+    // $('#adscal-list-action').find('input,textarea').attr('readonly', false);
+
+
+    $('#adscal-list-action').find('input,textarea').attr('readonly', true);
+    end_time = end_time ? end_time.replace("T", ' ') : '';
+    begin_time = begin_time ? begin_time.replace("T", ' ') : '';
+    $("#package_name").val(package_name);
+    $("#begin_time").val(begin_time);
+    $("#end_time").val(end_time);
+    $("#adser").val(adser);
+
+    need_desc_json = need_desc ? JSON.parse(need_desc) : ''
+    ads_play_num_desc_json = ads_play_num_desc ? JSON.parse(ads_play_num_desc) : ''
+    $("#serving_meth").val(serving_meth);
+    $(":radio[name='is_allow_repeat'][value='" + is_allow_repeat + "']").prop('checked', 'checked');
+    if (need_desc_json) {
+        $("#S").val(need_desc_json.S)
+        $("#A").val(need_desc_json.A)
+        $("#B").val(need_desc_json.B)
+        $("#C").val(need_desc_json.C)
+        $("#D").val(need_desc_json.D)
+    }
+    if (ads_play_num_desc_json) {
+        if (ads_play_num_desc_json.video) {
+            $(":checkbox[name='play'][value='1']").prop('checked', 'checked')
+            $("#play_num1").val(ads_play_num_desc_json.video)
+
+        }
+        if (ads_play_num_desc_json.subscript) {
+            $(":checkbox[name='play'][value='2']").prop('checked', 'checked')
+            $("#play_num2").val(ads_play_num_desc_json.subscript)
+
+        }
+    }
+    $('#dialog-adscal-info #btn-save').hide();
+    $("#dialog-adscal-info").modal();
+    // $("#dialog-adscal-info").dialog({ modal: true, title: event.title, width:350});
+}
+
+
+function cal_init() {
+    var options = {
+        defaultDate: getDate(),
+        editable: false,
+        buttonIcons: false,
+        eventLimit: true,
+        eventClick: function (event) {
+            var package_id = event.package_id;
+            $.get("/contract/package/getbyId?package_id=" + package_id, function (ret) {
+                show_detail(ret.package_name, ret.begin_time,
+                    ret.end_time, ret.need_desc, ret.ads_play_num_desc, ret.serving_meth, ret.is_allow_repeat, ret.adser)
+            });
+        },
+        dayClick: function (date, jsEvent, view, resourceObj) {
+            var css=$(this).css('background-color');
+            if(css=='rgba(255, 255, 0, 0.26)'){
+                $(this).css('background-color','');
+
+            }else {
+                 $(this).css('background-color', 'rgba(255, 255, 0, 0.26)');
+            }
+
+        },
+        dayRender: function (date, element) {
+            element.bind('dblclick', function () {
+                window.open("/ads/cal/list?date=" + date.format());
+            });
+        },
+        eventRender: function (event, element, view) {
+            var title = element.find('.fc-title');
+            title.html(title.text());
+        },
+        events: function (start, end, timezone, callback) {
+            var date=this.getDate().format('YYYY-MM');
+            $.post('/ads/cal/select', {date: date}, function (ret) {
+                var event = []
+                var today = getDate()
+                $.each(ret, function (i, c) {
+                    var temp = c
+                    if (temp.start < today) {
+                        temp.color = 'rgba(128, 128, 128, 0.79)'
+                    }
+                    if (temp.start == today) {
+                        temp.color = 'rgba(255, 0, 0, 0.66)'
+                    }
+                    if (temp.start > today) {
+                        temp.color = 'green'
+                    }
+                     temp.title += '<button type="button" class="btn btn-sm btn-default" style=\'float: right\'>查看</button>'
+                    if (temp.pstatus == 2) {
+                        temp.title += "<span class=\"badge badge-success mono\" style='float: right'>已结账</span>"
+                    }
+
+                    event.push(temp)
+                });
+                callback(event);
+            })
+
+        }
+    };
+
+    $('#calendar').fullCalendar(options);
+}
+
+$('[ywl-filter="add_cal_schedule"]').click(function () {
+     document.getElementById("adscal-list-action").reset();
+    // 清空checkbox
+    $('input:checkbox').each(function () {
+        $(this).prop('checked', false);
+    })
+    $('#adscal-list-action').find('input,textarea').attr('readonly', false);
+    $('#dialog-adscal-info #btn-save').show();
+    $("#dialog-adscal-info").modal();
+})
+
+$("#dialog-adscal-info" + " #btn-save").click(function () {
+    var dom_id='#dialog-adscal-info'
+    var package_name = $(dom_id + ' #package_name').val()
+    if (!package_name) {
+        alert('请填写广告名称')
+        return
+    }
+    var adser = $(dom_id + ' #adser').val()
+    if (!adser) {
+        alert('请填写广告主');
+        return
+    }
+    var begin_time = $(dom_id + ' #begin_time').val()
+    if (!begin_time) {
+        alert('请填写广告日期')
+        return
+    }
+    var end_time = $(dom_id + ' #end_time').val()
+    // var need_play_type=$("input[name='need_play_type']:checked").val()
+    if (!end_time) {
+        alert('请填写结束日期')
+        return
+    }
+    var ads_play_num_desc = []
+    var ads_play_num = 0
+    var json = {};
+    $.each($(":checkbox[name='play']:checked"), function () {
+        var num = $(this).val();
+        var counts = $("#play_num" + num).val();
+        ads_play_num += parseInt(counts)
+        var type = num == 1 ? 'video' : num == 2 ? 'subscript' : 'other';
+        json[type] = counts;
+    });
+    ads_play_num_desc.push(JSON.stringify(json))
+
+    if (!ads_play_num) {
+        alert('请选择广告播放次数')
+        return;
+    }
+    ads_play_num_desc.join("")
+    var serving_meth = $(dom_id + ' #serving_meth').val()
+    if (!serving_meth) {
+        alert('请选择广告投放方式')
+        return
+    }
+    var s = $(dom_id + ' #S').val()
+    var a = $(dom_id + ' #A').val()
+    var b = $(dom_id + ' #B').val()
+    var c = $(dom_id + ' #C').val()
+    var d = $(dom_id + ' #D').val()
+
+
+    var is_allow_repeat = $("input[name='is_allow_repeat']:checked").val();
+
+    function _fn_sure() {
+               ywl.ajax_post_json('/ads/cal/add', {
+                    package_name: package_name,
+                    adser: adser,
+                    begin_time: begin_time,
+                    end_time: end_time,
+                    ads_play_num_desc: ads_play_num_desc,
+                    serving_meth: serving_meth,
+                    is_allow_repeat: is_allow_repeat,
+                    // need_desc: need_desc,
+                    s: s,
+                    a: a,
+                    b: b,
+                    c: c,
+                    d: d,
+                    ads_play_num: ads_play_num
+                },
+                function (ret) {
+                    if (ret.code === TPE_OK) {
+                        ywl.notify_success('添加成功！');
+                        $(dom_id).modal('hide');
+                        window.location.reload();
+                    } else {
+                        alert(ret.message);
+                    }
+                },
+                function () {
+                    ywl.notify_error('网络故障，添加失败！');
+                }
+            );
+            }
+            var cb_stack = CALLBACK_STACK.create();
+
+        ywl.dlg_confirm(cb_stack, {
+            msg: '<p>您确定要下单么？此操作不可恢复！！</p>',
+            fn_yes: _fn_sure
+        });
+});
